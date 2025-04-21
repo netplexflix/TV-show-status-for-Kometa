@@ -27,73 +27,116 @@ Example overlays:
 
 ## 🛠️ Installation
 
-### 1️⃣ Clone the repo:
+### Choose your install method:
 
+---
+
+### ▶️ Option 1: Manual (Python)
+
+1. Clone the repo:
 ```sh
 git clone https://github.com/netplexflix/TV-show-status-for-Kometa.git
 cd TV-show-status-for-Kometa
 ```
 
->[!TIP]
->If you don't know what that means, then simply download the script by pressing the green 'Code' button above and then 'Download Zip'.
-> Extract the files to your desired folder
-  
-### 2️⃣ Install Dependencies
-- Ensure you have [Python](https://www.python.org/downloads/) installed (`>=3.9`). <br/>
+> [!TIP]
+>If you don't know what that means, then simply download the script by pressing the green 'Code' button above and then 'Download Zip'.  
+>Extract the files to your desired folder.
+
+2. Install dependencies:
+- Ensure you have [Python](https://www.python.org/downloads/) installed (`>=3.9`).
 - Open a Terminal in the script's directory
->[!TIP]
->Windows Users: <br/>
->Go to the TSSK folder (where TSSK.py is). Right mouse click on an empty space in the folder and click `Open in Windows Terminal`
-- Install the required dependencies by pasting the following code:
+> [!TIP]
+>Windows Users:  
+>Go to the TSSK folder (where TSSK.py is). Right mouse click on an empty space in the folder and click `Open in Windows Terminal`.
+- Install the required dependencies by running:
 ```sh
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Edit your Kometa config
-- Open your Kometa config.yml (Kometa/config/config.yml, NOT /TSSK/config.yml)
-- Under your TV Show library settings, add the paths to the collection and/or overlay .yml files you would like to use.</br>
-  (These files will be created in your TSSK folder when you run the script).<br/>
+---
 
-These Overlay files are created:
-```
-TSSK_TV_ENDED_OVERLAYS.yml
-TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
-TSSK_TV_NEW_SEASON_OVERLAYS.yml
-TSSK_TV_RETURNING_OVERLAYS.yml
-TSSK_TV_SEASON_FINALE_OVERLAYS.yml
-TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
-TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+### ▶️ Option 2: Docker
+
+If you prefer not to install Python and dependencies manually, you can use the official Docker image instead.
+
+1. Ensure you have [Docker](https://docs.docker.com/get-docker/) installed.
+2. Download the provided `docker-compose.yml` from this repository (or copy the example below).
+3. Run the container:
+```sh
+docker compose up -d
 ```
 
-These Collection files are created:
-```
-TSSK_TV_ENDED_COLLECTION.yml
-TSSK_TV_FINAL_EPISODE_COLLECTION.yml
-TSSK_TV_NEW_SEASON_COLLECTION.yml
-TSSK_TV_RETURNING_COLLECTION.yml
-TSSK_TV_SEASON_FINALE_COLLECTION.yml
-TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
-TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+This will:
+- Pull the latest `timothe/tssk` image from Docker Hub
+- Run the script on a daily schedule (by default at 2AM)
+- Mount your configuration and output directories into the container
+
+You can customize the run schedule by modifying the `CRON` environment variable in `docker-compose.yml`.
+
+> [!TIP]
+> You can point the TSSK script to write overlays/collections directly into your Kometa folders by adjusting the volume mounts.
+
+**Example `docker-compose.yml`:**
+
+```yaml
+version: "3.8"
+
+services:
+  tssk:
+    image: timothe/tssk:latest
+    container_name: tssk
+    environment:
+      - CRON=0 2 * * * # every day at 2am
+      - DOCKER=true # important for path reference
+    volumes:
+      - /your/local/config/tssk:/app/config
+      - /your/local/kometa/config:/config/kometa
+    restart: unless-stopped
 ```
 
-  Example:
-  ```
-  TV Shows:
-    collection_files:
-    - file: P:/TSSK/TSSK_TV_COLLECTION.yml
-    overlay_files:
-    - file: P:/TSSK/TSSK_TV_NEW_SEASON_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_ENDED_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_RETURNING_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
-    - file: P:/TSSK/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
-  ```
->[!TIP]
->Only add the files to the Kometa config for which you want to create collections or overlays<br/>
+---
 
-### 4️⃣ Edit your configuration file
+### 🧩 Continue Setup
+
+### 1️⃣ Edit your Kometa config
+
+Open your **Kometa** config.yml (typically at `Kometa/config/config.yml`, NOT your TSSK config file).  
+Refer to the note above for where the files are saved depending on your setup.
+
+The `.yml` files created by TSSK that Kometa uses are stored in different folders depending on how you're running the script:
+
+- **Manual install**: files are saved directly to `kometa/` inside your TSSK folder (e.g. `TSSK/kometa/`)
+- **Docker install**: files are saved to `/config/kometa/tssk/` inside the container — assuming you mount your Kometa config folder to `/config`
+
+Make sure your Kometa config uses the correct path to reference those files.
+
+In your Kometa config, include the following lines under your `TV Shows` library:
+
+```yaml
+TV Shows:
+  overlay_files:
+    - file: /config/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_ENDED_OVERLAYS.yml
+    - file: /config/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
+  collection_files:
+    - file: /config/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_ENDED_COLLECTION.yml
+    - file: /config/tssk/TSSK_TV_RETURNING_COLLECTION.yml
+```
+
+> [!TIP]
+> Only add the files for the categories you want to enable. All are optional and independently generated based on your config settings.
+
+### 2️⃣ Edit your configuration file
 ---
 
 ## ⚙️ Configuration
@@ -152,6 +195,15 @@ For each category, you can change the relevant settings:
 
 ---
 ## 🚀 Usage - Running the Script
+
+If you're using the **Docker setup**, the script will run automatically according to the schedule defined by the `CRON` variable in your `docker-compose.yml`.  
+You can inspect the container logs to see output and monitor activity:
+
+```sh
+docker logs -f tssk
+```
+
+If you're using the **manual install**, follow the instructions below to run the script manually.
 
 Open a Terminal in your script directory and launch the script with:
 ```sh
