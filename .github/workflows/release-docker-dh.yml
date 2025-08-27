@@ -25,7 +25,6 @@ jobs:
 
       # ---- Docker Hub login (maintainer must add secrets) ----
       - name: Log in to Docker Hub
-        if: ${{ secrets.DOCKERHUB_USERNAME && secrets.DOCKERHUB_TOKEN }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
