@@ -7,7 +7,7 @@ import os
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "1.8"
+VERSION = "1.9"
 
 # ANSI color codes
 GREEN = '\033[32m'
