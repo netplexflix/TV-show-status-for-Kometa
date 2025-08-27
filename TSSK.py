@@ -7,7 +7,7 @@ import os
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "1.9"
+VERSION = "2.0"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -926,6 +926,11 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
     """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""
     import yaml
     from copy import deepcopy
+    
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
     
     overlays_dict = {}
     
