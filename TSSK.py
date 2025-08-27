@@ -7,7 +7,7 @@ import os
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "1.8"
+VERSION = "1.9"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -824,6 +824,12 @@ def create_overlay_yaml(output_file, shows, config_sections):
     from copy import deepcopy
     from datetime import datetime
 
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+
+
     if not shows:
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("#No matching shows found")
@@ -966,6 +972,11 @@ def create_collection_yaml(output_file, shows, config):
     from yaml.representer import SafeRepresenter
     from copy import deepcopy
     from collections import OrderedDict
+
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
 
     # Add representer for OrderedDict
     def represent_ordereddict(dumper, data):
