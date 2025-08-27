@@ -77,7 +77,7 @@ docker compose up -d
 ```
 
 This will:
-- Pull the latest `netplexfix/tssk` image from Docker Hub
+- Pull the latest `netplexflix/tssk` image from Docker Hub
 - Run the script on a daily schedule (by default at 2AM)
 - Mount your configuration and output directories into the container
 
@@ -93,7 +93,7 @@ version: "3.8"
 
 services:
   tssk:
-    image: netplexfix/tssk:latest
+    image: netplexflix/tssk:latest
     container_name: tssk
     environment:
       - CRON=0 2 * * * # every day at 2am
