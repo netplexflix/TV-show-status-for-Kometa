@@ -53,7 +53,7 @@ cd TV-show-status-for-Kometa
 >Extract the files to your desired folder.
 
 2. Install dependencies:
-- Ensure you have [Python](https://www.python.org/downloads/) installed (`>=3.9`).
+- Ensure you have [Python](https://www.python.org/downloads/) installed (`>=3.11`).
 - Open a Terminal in the script's directory
 > [!TIP]
 >Windows Users:  
