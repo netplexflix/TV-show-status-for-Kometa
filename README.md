@@ -6,10 +6,11 @@ This script checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses 
 Categories:
 *  New shows, that were added in the past x days
 *  Shows with upcoming regular episodes within x days
-*  Shows with upcoming season finales within x days
-*  Shows for which a finale was added which aired in the past x days
 *  Shows for which a new season is airing within x days
 *  Shows for which a new season has been added which aired in the past x days
+*  Shows with upcoming season finales within x days
+*  Shows for which a season finale was added which aired in the past x days
+*  Shows for which a final episode was added which aired in the past x days
 *  Returning Shows (new episodes or seasons are coming, but not within the timeframes chosen above)
 *  Ended Shows (no new episodes or seasons are expected)
 
@@ -120,28 +121,56 @@ The `.yml` files created by TSSK that Kometa uses are stored in different folder
 
 Make sure your Kometa config uses the correct path to reference those files.
 
-In your Kometa config, include the following lines under your `TV Shows` library:
+In your Kometa config, include paths to the generated .yml files under your `TV Shows` library:
+
+Manual install Example:
 
 ```yaml
 TV Shows:
   overlay_files:
-    - file: /config/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_ENDED_OVERLAYS.yml
-    - file: /config/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
-    - file: P:/TOOLS/Plex Meta Manager/config/TSSK/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
-    - file: P:/TOOLS/Plex Meta Manager/config/TSSK/TSSK_TV_NEW_SHOW_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_OVERLAYS.yml
   collection_files:
-    - file: /config/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_ENDED_COLLECTION.yml
-    - file: /config/tssk/TSSK_TV_RETURNING_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_COLLECTION.yml
+```
+
+Docker install Example:
+
+```yaml
+TV Shows:
+  overlay_files:
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_ENDED_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_OVERLAYS.yml
+  collection_files:
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_ENDED_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_RETURNING_COLLECTION.yml
 ```
 
 > [!TIP]
