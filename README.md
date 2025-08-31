@@ -215,6 +215,12 @@ For each category, you can change the relevant settings:
   - **use_text:** Text to be used on the overlays before the date. e.h.: "NEW SEASON"
   - Change text color and positioning. You can add any relevant variables here. [More info here](https://kometa.wiki/en/latest/files/overlays/?h=overlay#text-overlay)
 
+> [!TIP]
+> `group` and `weight` are used to determine which overlays are applied in case multiple are valid.
+> Example: You add a new show, for which season 2 just aired in full yesterday. In this case the following overlays would be valid: `new show`, `new season` and `season finale`.
+> In the default config, `new show` has the highest weight (40) so that's the overlay that will be applied. If you prefer any of the other to be applied instead, you need to increase their weight.
+> You can also choose to have multiple overlays applied at the same time by removing the group and weight, in case you put them in different positions.
+
 
 >[!NOTE]
 > These are date formats you can use:<br/>
