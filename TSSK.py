@@ -1,13 +1,16 @@
 import requests
 import yaml
+from yaml.representer import SafeRepresenter
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+from collections import OrderedDict
 import sys
 import os
+from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.0"
+VERSION = "2.2"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -820,10 +823,6 @@ def format_date(yyyy_mm_dd, date_format, capitalize=False):
         return yyyy_mm_dd  # Return original format as fallback
 
 def create_overlay_yaml(output_file, shows, config_sections):
-    import yaml
-    from copy import deepcopy
-    from datetime import datetime
-
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
     os.makedirs(output_dir, exist_ok=True)
@@ -922,11 +921,80 @@ def create_overlay_yaml(output_file, shows, config_sections):
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
 
-def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
-    """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""
-    import yaml
-    from copy import deepcopy
+def create_new_show_collection_yaml(output_file, config, recent_days):
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+
+    # Add representer for OrderedDict
+    def represent_ordereddict(dumper, data):
+        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
     
+    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+
+    class QuotedString(str):
+        pass
+
+    def quoted_str_presenter(dumper, data):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+
+    # Get collection configuration
+    collection_config = deepcopy(config.get("collection_new_show", {}))
+    collection_name = collection_config.pop("collection_name", "New Shows")
+    summary = f"New Shows added in the past {recent_days} days"
+
+    # Create the collection data structure as a regular dict
+    collection_data = {}
+    collection_data["summary"] = summary
+    
+    # Add all remaining parameters from the collection config
+    for key, value in collection_config.items():
+        # If it's a sort_title, make it a QuotedString
+        if key == "sort_title":
+            collection_data[key] = QuotedString(value)
+        else:
+            collection_data[key] = value
+    
+    # Add sync_mode after the config parameters
+    collection_data["sync_mode"] = "sync"
+    
+    # Add plex_all and filters instead of tvdb_show
+    collection_data["plex_all"] = True
+    collection_data["filters"] = {"added": recent_days}
+
+    # Create the final structure with ordered keys
+    ordered_collection = OrderedDict()
+    
+    # Add keys in the desired order
+    ordered_collection["summary"] = collection_data["summary"]
+    if "sort_title" in collection_data:
+        ordered_collection["sort_title"] = collection_data["sort_title"]
+    
+    # Add all other keys except sync_mode, plex_all, and filters
+    for key, value in collection_data.items():
+        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
+            ordered_collection[key] = value
+    
+    # Add sync_mode, plex_all, and filters at the end
+    ordered_collection["sync_mode"] = collection_data["sync_mode"]
+    ordered_collection["plex_all"] = collection_data["plex_all"]
+    ordered_collection["filters"] = collection_data["filters"]
+
+    data = {
+        "collections": {
+            collection_name: ordered_collection
+        }
+    }
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        # Use SafeDumper so our custom representer is used
+        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+
+def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
+    """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
     os.makedirs(output_dir, exist_ok=True)
@@ -973,11 +1041,6 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
         yaml.dump(final_output, f, sort_keys=False)
 
 def create_collection_yaml(output_file, shows, config):
-    import yaml
-    from yaml.representer import SafeRepresenter
-    from copy import deepcopy
-    from collections import OrderedDict
-
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
     os.makedirs(output_dir, exist_ok=True)
@@ -1269,8 +1332,9 @@ def main():
                                    {"backdrop": get_config_section(config, "backdrop_new_show"),
                                     "text": get_config_section(config, "text_new_show")}, 
                                    recent_days_new_show)
-        
-        print(f"\n{GREEN}New show overlay created for shows added within the past {recent_days_new_show} days{RESET}")
+
+        create_new_show_collection_yaml("TSSK_TV_NEW_SHOW_COLLECTION.yml", config, recent_days_new_show)
+        print(f"\n{GREEN}New show overlay and collection created for shows added within the past {recent_days_new_show} days{RESET}")
 
         # ---- Upcoming Non-Finale Episodes ----
         upcoming_eps, skipped_eps = find_upcoming_regular_episodes(
