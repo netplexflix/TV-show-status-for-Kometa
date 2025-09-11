@@ -1,13 +1,12 @@
-version: "3.8"
-
 services:
   tssk:
-    image: netplexflix/tssk:latest
+    image: thatcasualmatt/tssk:latest
     container_name: tssk
     environment:
-      - CRON=0 2 * * * # every day at 2am
-      - DOCKER=true # important for path reference
+      - CRON=0 2 * * *  # daily at 2AM
+      - DOCKER=true
     volumes:
       - /your/local/config/tssk:/app/config
       - /your/local/kometa/config:/config/kometa
+      - /your/local/logs:/var/log  # optional: persist logs outside container
     restart: unless-stopped
