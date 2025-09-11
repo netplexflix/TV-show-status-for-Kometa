@@ -1,32 +1,40 @@
-# Use a slim Python image as the base
+# Use Alpine-based Python image for small size
 FROM python:3.11-slim
 
-# Disable .pyc files and enable real-time logging
+# Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     CRON="0 2 * * *"
-# default: run at 2AM daily
 
 # Set working directory
 WORKDIR /app
 
-# Install cron and tzdata (timezone handling if needed)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends cron tzdata && \
-    rm -rf /var/lib/apt/lists/*
+# Install bash, cron, tzdata, and build dependencies for Python packages
+RUN apk add --no-cache \
+        bash \
+        tzdata \
+        py3-cron \
+        build-base \
+        musl-dev \
+        libffi-dev \
+        python3-dev \
+        py3-pip
 
-# Copy only what we need
+# Copy Python dependencies first to leverage caching
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy remaining app files
+# Copy the application code
 COPY . .
 
-# Copy and prepare the entrypoint
+# Copy entrypoint and make executable
 COPY docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Start with the entrypoint script (sets up cron)
+# Expose log directory (optional)
+VOLUME ["/var/log"]
+
+# Start container with entrypoint
 ENTRYPOINT ["/entrypoint.sh"]
