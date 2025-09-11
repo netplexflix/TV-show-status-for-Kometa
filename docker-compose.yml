@@ -1,12 +1,14 @@
 services:
   tssk:
-    image: thatcasualmatt/tssk:latest
+    build:
+      context: https://github.com/netplexflix/TV-show-status-for-Kometa#main
+      dockerfile: Dockerfile
     container_name: tssk
     environment:
       - CRON=0 2 * * *  # daily at 2AM
       - DOCKER=true
+      - RUN_NOW=false  # set true to run immediately on container start
     volumes:
       - /your/local/config/tssk:/app/config
       - /your/local/kometa/config:/config/kometa
-      - /your/local/logs:/var/log  # optional: persist logs outside container
     restart: unless-stopped
