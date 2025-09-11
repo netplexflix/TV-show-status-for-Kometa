@@ -1,5 +1,5 @@
 # Use Alpine-based Python image for small size
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,31 +9,31 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set working directory
 WORKDIR /app
 
-# Install bash, cron, tzdata, and build dependencies for Python packages
+# Install bash, cron, tzdata, and build dependencies
 RUN apk add --no-cache \
         bash \
         tzdata \
-        py3-cron \
+        dcron \
         build-base \
         musl-dev \
         libffi-dev \
         python3-dev \
         py3-pip
 
-# Copy Python dependencies first to leverage caching
+# Copy dependencies first (to leverage caching)
 COPY requirements.txt .
 
 # Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code
+# Copy application code
 COPY . .
 
 # Copy entrypoint and make executable
 COPY docker-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Expose log directory (optional)
+# Expose log volume (optional)
 VOLUME ["/var/log"]
 
 # Start container with entrypoint
