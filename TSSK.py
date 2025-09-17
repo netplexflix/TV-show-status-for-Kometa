@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.2"
+VERSION = "2.3"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -122,8 +122,9 @@ def get_sonarr_series(sonarr_url, api_key):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"{RED}Error connecting to Sonarr: {str(e)}{RESET}")
-        sys.exit(1)
+        print(f"{ORANGE}Warning: Error connecting to Sonarr: {str(e)}{RESET}")
+        print(f"{ORANGE}Continuing with empty series list...{RESET}")
+        return []
 
 def get_sonarr_episodes(sonarr_url, api_key, series_id):
     try:
@@ -133,8 +134,9 @@ def get_sonarr_episodes(sonarr_url, api_key, series_id):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"{RED}Error fetching episodes from Sonarr: {str(e)}{RESET}")
-        sys.exit(1)
+        print(f"{ORANGE}Warning: Error fetching episodes for series {series_id}: {str(e)}{RESET}")
+        print(f"{ORANGE}Skipping this series and continuing...{RESET}")
+        return []
 
 def find_new_season_shows(sonarr_url, api_key, future_days_new_season, utc_offset=0, skip_unmonitored=False):
     cutoff_date = datetime.now(timezone.utc) + timedelta(days=future_days_new_season)
@@ -1011,7 +1013,8 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
         overlays_dict["backdrop"] = {
             "plex_all": True,
             "filters": {
-                "added": recent_days
+                "added": recent_days,
+                "label.not": "Coming Soon"
             },
             "overlay": backdrop_config
         }
@@ -1030,7 +1033,8 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
         overlays_dict["new_show"] = {
             "plex_all": True,
             "filters": {
-                "added": recent_days
+                "added": recent_days,
+                "label.not": "Coming Soon"
             },
             "overlay": text_config
         }
