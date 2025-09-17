@@ -11,10 +11,11 @@ Categories:
 *  Shows with upcoming season finales within x days
 *  Shows for which a season finale was added which aired in the past x days
 *  Shows for which a final episode was added which aired in the past x days
-*  Returning Shows (new episodes or seasons are coming, but not within the timeframes chosen above)
-*  Ended Shows (no new episodes or seasons are expected)
+*  Returning Shows
+*  Ended Shows
+*  Canceled Shows
 
-<sub>Also see [UTSK](https://github.com/netplexflix/Upcoming-TV-Shows-for-Kometa) for adding a category for upcoming TV shows</sub>
+<sub>Also see [UMTK](https://github.com/netplexflix/Upcoming-Movies-TV-Shows-for-Kometa) for adding a category for upcoming Movies and TV shows</sub>
 
 Example overlays (you can fully customize placement, colors, text, etc:
 ![Image](https://github.com/user-attachments/assets/e7c517cc-5164-41d9-8e5e-015577aad36e)
@@ -131,6 +132,7 @@ TV Shows:
     - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
@@ -138,12 +140,14 @@ TV Shows:
     - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_OVERLAYS.yml
   collection_files:
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+    - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_COLLECTION.yml
     - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_COLLECTION.yml
 ```
@@ -156,6 +160,7 @@ TV Shows:
     - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+    - file: /config/kometa/tssk/TSSK_TV_CANCELED_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_ENDED_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
@@ -163,12 +168,14 @@ TV Shows:
     - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
     - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_OVERLAYS.yml
   collection_files:
+    - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+    - file: /config/kometa/tssk/TSSK_TV_CANCELED_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_ENDED_COLLECTION.yml
     - file: /config/kometa/tssk/TSSK_TV_RETURNING_COLLECTION.yml
 ```
