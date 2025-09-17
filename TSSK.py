@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.3"
+VERSION = "2.4"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -410,70 +410,6 @@ def find_upcoming_finales(sonarr_url, api_key, future_days_upcoming_finale, utc_
         matched_shows.append(show_dict)
     
     return matched_shows, skipped_shows
-
-def find_ended_shows(sonarr_url, api_key):
-    """Find shows that have ended and have no upcoming regular episodes (ignoring specials)"""
-    matched_shows = []
-    
-    all_series = get_sonarr_series(sonarr_url, api_key)
-    
-    for series in all_series:
-        # Check if the show has ended
-        if series.get('status') == 'ended':
-            episodes = get_sonarr_episodes(sonarr_url, api_key, series['id'])
-            
-            # Check if there are any future regular episodes (ignoring specials)
-            has_future_regular_episodes = False
-            for ep in episodes:
-                air_date_str = ep.get('airDateUtc')
-                season_number = ep.get('seasonNumber', 0)
-                
-                # Skip specials (season 0)
-                if season_number == 0:
-                    continue
-                    
-                if air_date_str:
-                    air_date = datetime.fromisoformat(air_date_str.replace('Z','')).replace(tzinfo=timezone.utc)
-                    if air_date > datetime.now(timezone.utc):
-                        has_future_regular_episodes = True
-                        break
-            
-            # Include only if there are no future regular episodes
-            if not has_future_regular_episodes:
-                tvdb_id = series.get('tvdbId')
-                
-                show_dict = {
-                    'title': series['title'],
-                    'tvdbId': tvdb_id
-                }
-                
-                matched_shows.append(show_dict)
-    
-    return matched_shows
-
-def find_returning_shows(sonarr_url, api_key, excluded_tvdb_ids):
-    """Find shows with 'continuing' status that aren't in other categories"""
-    matched_shows = []
-    
-    all_series = get_sonarr_series(sonarr_url, api_key)
-    
-    for series in all_series:
-        # Check if the show has 'continuing' status
-        if series.get('status') == 'continuing':
-            tvdb_id = series.get('tvdbId')
-            
-            # Skip if this show is already in another category
-            if tvdb_id in excluded_tvdb_ids:
-                continue
-                
-            show_dict = {
-                'title': series['title'],
-                'tvdbId': tvdb_id
-            }
-            
-            matched_shows.append(show_dict)
-    
-    return matched_shows
 
 def find_recent_season_finales(sonarr_url, api_key, recent_days_season_finale, utc_offset=0, skip_unmonitored=False):
     """Find shows with status 'continuing' that had a season finale air within the specified days or have a future finale that's already downloaded"""
@@ -906,10 +842,6 @@ def create_overlay_yaml(output_file, shows, config_sections):
                 block_key = "TSSK_season_finale"
             elif "FINAL_EPISODE" in output_file:
                 block_key = "TSSK_final_episode"
-            elif "ENDED" in output_file:
-                block_key = "TSSK_ended"
-            elif "RETURNING" in output_file:
-                block_key = "TSSK_returning"
             else:
                 block_key = "TSSK_text"  # fallback
             
@@ -995,6 +927,201 @@ def create_new_show_collection_yaml(output_file, config, recent_days):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
+def create_returning_show_collection_yaml(output_file, config):
+    """Create collection YAML for returning shows using Plex filters instead of Sonarr data"""
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+
+    # Add representer for OrderedDict
+    def represent_ordereddict(dumper, data):
+        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    
+    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+
+    class QuotedString(str):
+        pass
+
+    def quoted_str_presenter(dumper, data):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+
+    # Get collection configuration
+    collection_config = deepcopy(config.get("collection_returning", {}))
+    collection_name = collection_config.pop("collection_name", "Returning Shows")
+    summary = "Returning Shows without upcoming episodes within the chosen timeframes"
+
+    # Create the collection data structure as a regular dict
+    collection_data = {}
+    collection_data["summary"] = summary
+    
+    # Add all remaining parameters from the collection config
+    for key, value in collection_config.items():
+        # If it's a sort_title, make it a QuotedString
+        if key == "sort_title":
+            collection_data[key] = QuotedString(value)
+        else:
+            collection_data[key] = value
+    
+    # Add sync_mode after the config parameters
+    collection_data["sync_mode"] = "sync"
+    
+    # Add plex_all and filters instead of tvdb_show
+    collection_data["plex_all"] = True
+    collection_data["filters"] = {"tmdb_status": "returning"}
+
+    # Create the final structure with ordered keys
+    ordered_collection = OrderedDict()
+    
+    # Add keys in the desired order
+    ordered_collection["summary"] = collection_data["summary"]
+    if "sort_title" in collection_data:
+        ordered_collection["sort_title"] = collection_data["sort_title"]
+    
+    # Add all other keys except sync_mode, plex_all, and filters
+    for key, value in collection_data.items():
+        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
+            ordered_collection[key] = value
+    
+    # Add sync_mode, plex_all, and filters at the end
+    ordered_collection["sync_mode"] = collection_data["sync_mode"]
+    ordered_collection["plex_all"] = collection_data["plex_all"]
+    ordered_collection["filters"] = collection_data["filters"]
+
+    data = {
+        "collections": {
+            collection_name: ordered_collection
+        }
+    }
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        # Use SafeDumper so our custom representer is used
+        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+
+def create_returning_show_overlay_yaml(output_file, config_sections):
+    """Create overlay YAML for returning shows using Plex filters instead of Sonarr data"""  
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+    
+    overlays_dict = {}
+    
+    # -- Backdrop Block --
+    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+    enable_backdrop = backdrop_config.pop("enable", True)
+    
+    if enable_backdrop:
+        backdrop_config["name"] = "backdrop"
+        overlays_dict["backdrop"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "returning",
+                "label.not": "coming soon"
+            },
+            "overlay": backdrop_config
+        }
+    
+    # -- Text Block --
+    text_config = deepcopy(config_sections.get("text", {}))
+    enable_text = text_config.pop("enable", True)
+    
+    if enable_text:
+        use_text = text_config.pop("use_text", "Returning")
+        text_config.pop("date_format", None)  # Remove if present
+        text_config.pop("capitalize_dates", None)  # Remove if present
+        
+        text_config["name"] = f"text({use_text})"
+        
+        overlays_dict["returning_show"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "returning",
+                "label.not": "coming soon"
+            },
+            "overlay": backdrop_config
+        }
+    
+    final_output = {"overlays": overlays_dict}
+    
+    with open(output_file, "w", encoding="utf-8") as f:
+        yaml.dump(final_output, f, sort_keys=False)
+
+def create_ended_show_collection_yaml(output_file, config):
+    """Create collection YAML for ended shows using Plex filters instead of Sonarr data"""
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+
+    # Add representer for OrderedDict
+    def represent_ordereddict(dumper, data):
+        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    
+    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+
+    class QuotedString(str):
+        pass
+
+    def quoted_str_presenter(dumper, data):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+
+    # Get collection configuration
+    collection_config = deepcopy(config.get("collection_ended", {}))
+    collection_name = collection_config.pop("collection_name", "Ended Shows")
+    summary = "Shows that have ended"
+
+    # Create the collection data structure as a regular dict
+    collection_data = {}
+    collection_data["summary"] = summary
+    
+    # Add all remaining parameters from the collection config
+    for key, value in collection_config.items():
+        # If it's a sort_title, make it a QuotedString
+        if key == "sort_title":
+            collection_data[key] = QuotedString(value)
+        else:
+            collection_data[key] = value
+    
+    # Add sync_mode after the config parameters
+    collection_data["sync_mode"] = "sync"
+    
+    # Add plex_all and filters instead of tvdb_show
+    collection_data["plex_all"] = True
+    collection_data["filters"] = {"tmdb_status": "ended"}
+
+    # Create the final structure with ordered keys
+    ordered_collection = OrderedDict()
+    
+    # Add keys in the desired order
+    ordered_collection["summary"] = collection_data["summary"]
+    if "sort_title" in collection_data:
+        ordered_collection["sort_title"] = collection_data["sort_title"]
+    
+    # Add all other keys except sync_mode, plex_all, and filters
+    for key, value in collection_data.items():
+        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
+            ordered_collection[key] = value
+    
+    # Add sync_mode, plex_all, and filters at the end
+    ordered_collection["sync_mode"] = collection_data["sync_mode"]
+    ordered_collection["plex_all"] = collection_data["plex_all"]
+    ordered_collection["filters"] = collection_data["filters"]
+
+    data = {
+        "collections": {
+            collection_name: ordered_collection
+        }
+    }
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        # Use SafeDumper so our custom representer is used
+        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+
 def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
     """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
@@ -1044,6 +1171,177 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
 
+def create_ended_show_overlay_yaml(output_file, config_sections):
+    """Create overlay YAML for ended shows using Plex filters instead of Sonarr data"""  
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+    
+    overlays_dict = {}
+    
+    # -- Backdrop Block --
+    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+    enable_backdrop = backdrop_config.pop("enable", True)
+    
+    if enable_backdrop:
+        backdrop_config["name"] = "backdrop"
+        overlays_dict["backdrop"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "ended",
+                "label.not": "coming soon"
+            },
+            "overlay": backdrop_config
+        }
+    
+    # -- Text Block --
+    text_config = deepcopy(config_sections.get("text", {}))
+    enable_text = text_config.pop("enable", True)
+    
+    if enable_text:
+        use_text = text_config.pop("use_text", "Ended")
+        text_config.pop("date_format", None)  # Remove if present
+        text_config.pop("capitalize_dates", None)  # Remove if present
+        
+        text_config["name"] = f"text({use_text})"
+        
+        overlays_dict["ended_show"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "ended",
+                "label.not": "coming soon"
+            },
+            "overlay": text_config
+        }
+    
+    final_output = {"overlays": overlays_dict}
+    
+    with open(output_file, "w", encoding="utf-8") as f:
+        yaml.dump(final_output, f, sort_keys=False)
+
+def create_canceled_show_collection_yaml(output_file, config):
+    """Create collection YAML for canceled shows using Plex filters instead of Sonarr data"""
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+
+    # Add representer for OrderedDict
+    def represent_ordereddict(dumper, data):
+        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    
+    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+
+    class QuotedString(str):
+        pass
+
+    def quoted_str_presenter(dumper, data):
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+
+    # Get collection configuration
+    collection_config = deepcopy(config.get("collection_canceled", {}))
+    collection_name = collection_config.pop("collection_name", "Canceled Shows")
+    summary = "Shows that have been canceled"
+
+    # Create the collection data structure as a regular dict
+    collection_data = {}
+    collection_data["summary"] = summary
+    
+    # Add all remaining parameters from the collection config
+    for key, value in collection_config.items():
+        # If it's a sort_title, make it a QuotedString
+        if key == "sort_title":
+            collection_data[key] = QuotedString(value)
+        else:
+            collection_data[key] = value
+    
+    # Add sync_mode after the config parameters
+    collection_data["sync_mode"] = "sync"
+    
+    # Add plex_all and filters instead of tvdb_show
+    collection_data["plex_all"] = True
+    collection_data["filters"] = {"tmdb_status": "canceled"}
+
+    # Create the final structure with ordered keys
+    ordered_collection = OrderedDict()
+    
+    # Add keys in the desired order
+    ordered_collection["summary"] = collection_data["summary"]
+    if "sort_title" in collection_data:
+        ordered_collection["sort_title"] = collection_data["sort_title"]
+    
+    # Add all other keys except sync_mode, plex_all, and filters
+    for key, value in collection_data.items():
+        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
+            ordered_collection[key] = value
+    
+    # Add sync_mode, plex_all, and filters at the end
+    ordered_collection["sync_mode"] = collection_data["sync_mode"]
+    ordered_collection["plex_all"] = collection_data["plex_all"]
+    ordered_collection["filters"] = collection_data["filters"]
+
+    data = {
+        "collections": {
+            collection_name: ordered_collection
+        }
+    }
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        # Use SafeDumper so our custom representer is used
+        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+
+def create_canceled_show_overlay_yaml(output_file, config_sections):
+    """Create overlay YAML for canceled shows using Plex filters"""  
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+    
+    overlays_dict = {}
+    
+    # -- Backdrop Block --
+    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+    enable_backdrop = backdrop_config.pop("enable", True)
+    
+    if enable_backdrop:
+        backdrop_config["name"] = "backdrop"
+        overlays_dict["backdrop"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "canceled",
+                "label.not": "coming soon"
+            },
+            "overlay": backdrop_config
+        }
+    
+    # -- Text Block --
+    text_config = deepcopy(config_sections.get("text", {}))
+    enable_text = text_config.pop("enable", True)
+    
+    if enable_text:
+        use_text = text_config.pop("use_text", "Canceled")
+        text_config.pop("date_format", None)  # Remove if present
+        text_config.pop("capitalize_dates", None)  # Remove if present
+        
+        text_config["name"] = f"text({use_text})"
+        
+        overlays_dict["canceled_show"] = {
+            "plex_all": True,
+            "filters": {
+                "tmdb_status": "canceled",
+                "label.not": "coming soon"
+            },
+            "overlay": text_config
+        }
+    
+    final_output = {"overlays": overlays_dict}
+    
+    with open(output_file, "w", encoding="utf-8") as f:
+        yaml.dump(final_output, f, sort_keys=False)
+
 def create_collection_yaml(output_file, shows, config):
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1078,12 +1376,6 @@ def create_collection_yaml(output_file, shows, config):
     elif "UPCOMING_FINALE" in output_file:
         config_key = "collection_upcoming_finale"
         summary = f"Shows with a season finale within {config.get('future_days_upcoming_finale', 31)} days"
-    elif "ENDED" in output_file:
-        config_key = "collection_ended"
-        summary = "Shows that have completed their run"
-    elif "RETURNING" in output_file:
-        config_key = "collection_returning"
-        summary = "Returning Shows without upcoming episodes within the chosen timeframes"
     else:
         # Default fallback
         config_key = None
@@ -1237,65 +1529,21 @@ def main():
 
         # Track all tvdbIds to exclude from other categories
         all_excluded_tvdb_ids = set()
-        
-        # ---- Recent Season Finales ----
-        season_finale_shows = find_recent_season_finales(
-            sonarr_url, sonarr_api_key, recent_days_season_finale, utc_offset, skip_unmonitored
-        )
-        
-        # Add to excluded IDs
-        for show in season_finale_shows:
-            if show.get('tvdbId'):
-                all_excluded_tvdb_ids.add(show['tvdbId'])
-        
-        if season_finale_shows:
-            print(f"{GREEN}Shows with a season finale that aired within the past {recent_days_season_finale} days:{RESET}")
-            for show in season_finale_shows:
-                print(f"- {show['title']} (S{show['seasonNumber']}E{show['episodeNumber']}) aired on {show['airDate']}")
-        
-        create_overlay_yaml("TSSK_TV_SEASON_FINALE_OVERLAYS.yml", season_finale_shows, 
-                           {"backdrop": config.get("backdrop_season_finale", {}),
-                            "text": config.get("text_season_finale", {})})
-        
-        create_collection_yaml("TSSK_TV_SEASON_FINALE_COLLECTION.yml", season_finale_shows, config)
-        
-        # ---- Recent Final Episodes ----
-        final_episode_shows = find_recent_final_episodes(
-            sonarr_url, sonarr_api_key, recent_days_final_episode, utc_offset
-        )
-        
-        # Add to excluded IDs
-        for show in final_episode_shows:
-            if show.get('tvdbId'):
-                all_excluded_tvdb_ids.add(show['tvdbId'])
-        
-        if final_episode_shows:
-            print(f"\n{GREEN}Shows with a final episode that aired within the past {recent_days_final_episode} days:{RESET}")
-            for show in final_episode_shows:
-                print(f"- {show['title']} (S{show['seasonNumber']}E{show['episodeNumber']}) aired on {show['airDate']}")
-        
-        create_overlay_yaml("TSSK_TV_FINAL_EPISODE_OVERLAYS.yml", final_episode_shows, 
-                           {"backdrop": config.get("backdrop_final_episode", {}),
-                            "text": config.get("text_final_episode", {})})
-        
-        create_collection_yaml("TSSK_TV_FINAL_EPISODE_COLLECTION.yml", final_episode_shows, config)
 
-        # Track all tvdbIds to exclude from the "returning" category
-        all_included_tvdb_ids = set()
+        # ---- New Show ----
+        create_new_show_overlay_yaml("TSSK_TV_NEW_SHOW_OVERLAYS.yml", 
+                                   {"backdrop": get_config_section(config, "backdrop_new_show"),
+                                    "text": get_config_section(config, "text_new_show")}, 
+                                   recent_days_new_show)
 
-        # ---- New Season Shows ----
+        create_new_show_collection_yaml("TSSK_TV_NEW_SHOW_COLLECTION.yml", config, recent_days_new_show)
+        print(f"\n'New shows' overlay and collection .ymls created for shows added within the past {GREEN}{recent_days_new_show}{RESET} days")
+
+        # ---- New Season Soon ----
         matched_shows, skipped_shows = find_new_season_shows(
             sonarr_url, sonarr_api_key, future_days_new_season, utc_offset, skip_unmonitored
         )
-        
-        # Filter out shows that are in the season finale or final episode categories
-        matched_shows = [show for show in matched_shows if show.get('tvdbId') not in all_excluded_tvdb_ids]
-        
-        # Add to excluded IDs for returning category
-        for show in matched_shows:
-            if show.get('tvdbId'):
-                all_included_tvdb_ids.add(show['tvdbId'])
-        
+                        
         if matched_shows:
             print(f"\n{GREEN}Shows with a new season starting within {future_days_new_season} days:{RESET}")
             for show in matched_shows:
@@ -1331,28 +1579,14 @@ def main():
         
         create_collection_yaml("TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml", new_season_started_shows, config)
 
-        # ---- New Show ----
-        create_new_show_overlay_yaml("TSSK_TV_NEW_SHOW_OVERLAYS.yml", 
-                                   {"backdrop": get_config_section(config, "backdrop_new_show"),
-                                    "text": get_config_section(config, "text_new_show")}, 
-                                   recent_days_new_show)
-
-        create_new_show_collection_yaml("TSSK_TV_NEW_SHOW_COLLECTION.yml", config, recent_days_new_show)
-        print(f"\n{GREEN}New show overlay and collection created for shows added within the past {recent_days_new_show} days{RESET}")
-
-        # ---- Upcoming Non-Finale Episodes ----
+        # ---- Upcoming Regular Episodes ----
         upcoming_eps, skipped_eps = find_upcoming_regular_episodes(
             sonarr_url, sonarr_api_key, future_days_upcoming_episode, utc_offset, skip_unmonitored
         )
         
         # Filter out shows that are in the season finale or final episode categories
         upcoming_eps = [show for show in upcoming_eps if show.get('tvdbId') not in all_excluded_tvdb_ids]
-        
-        # Add to excluded IDs for returning category
-        for show in upcoming_eps:
-            if show.get('tvdbId'):
-                all_included_tvdb_ids.add(show['tvdbId'])
-        
+                
         if upcoming_eps:
             print(f"\n{GREEN}Shows with upcoming non-finale episodes within {future_days_upcoming_episode} days:{RESET}")
             for show in upcoming_eps:
@@ -1363,20 +1597,12 @@ def main():
                             "text": config.get("text_upcoming_episode", {})})
         
         create_collection_yaml("TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml", upcoming_eps, config)
-        
+
         # ---- Upcoming Finale Episodes ----
         finale_eps, skipped_finales = find_upcoming_finales(
             sonarr_url, sonarr_api_key, future_days_upcoming_finale, utc_offset, skip_unmonitored
         )
-        
-        # Filter out shows that are in the season finale or final episode categories
-        finale_eps = [show for show in finale_eps if show.get('tvdbId') not in all_excluded_tvdb_ids]
-        
-        # Add to excluded IDs for returning category
-        for show in finale_eps:
-            if show.get('tvdbId'):
-                all_included_tvdb_ids.add(show['tvdbId'])
-        
+                
         if finale_eps:
             print(f"\n{GREEN}Shows with upcoming season finales within {future_days_upcoming_finale} days:{RESET}")
             for show in finale_eps:
@@ -1387,54 +1613,80 @@ def main():
                             "text": config.get("text_upcoming_finale", {})})
         
         create_collection_yaml("TSSK_TV_UPCOMING_FINALE_COLLECTION.yml", finale_eps, config)
+        
+        # ---- Recent Season Finales ----
+        season_finale_shows = find_recent_season_finales(
+            sonarr_url, sonarr_api_key, recent_days_season_finale, utc_offset, skip_unmonitored
+        )
+        
+        # Add to excluded IDs
+        for show in season_finale_shows:
+            if show.get('tvdbId'):
+                all_excluded_tvdb_ids.add(show['tvdbId'])
+        
+        if season_finale_shows:
+            print(f"\n{GREEN}Shows with a season finale that aired within the past {recent_days_season_finale} days:{RESET}")
+            for show in season_finale_shows:
+                print(f"- {show['title']} (S{show['seasonNumber']}E{show['episodeNumber']}) aired on {show['airDate']}")
+        
+        create_overlay_yaml("TSSK_TV_SEASON_FINALE_OVERLAYS.yml", season_finale_shows, 
+                           {"backdrop": config.get("backdrop_season_finale", {}),
+                            "text": config.get("text_season_finale", {})})
+        
+        create_collection_yaml("TSSK_TV_SEASON_FINALE_COLLECTION.yml", season_finale_shows, config)
+        
+        # ---- Recent Final Episodes ----
+        final_episode_shows = find_recent_final_episodes(
+            sonarr_url, sonarr_api_key, recent_days_final_episode, utc_offset
+        )
+        
+        # Add to excluded IDs
+        for show in final_episode_shows:
+            if show.get('tvdbId'):
+                all_excluded_tvdb_ids.add(show['tvdbId'])
+        
+        if final_episode_shows:
+            print(f"\n{GREEN}Shows with a final episode that aired within the past {recent_days_final_episode} days:{RESET}")
+            for show in final_episode_shows:
+                print(f"- {show['title']} (S{show['seasonNumber']}E{show['episodeNumber']}) aired on {show['airDate']}")
+        
+        create_overlay_yaml("TSSK_TV_FINAL_EPISODE_OVERLAYS.yml", final_episode_shows, 
+                           {"backdrop": config.get("backdrop_final_episode", {}),
+                            "text": config.get("text_final_episode", {})})
+        
+        create_collection_yaml("TSSK_TV_FINAL_EPISODE_COLLECTION.yml", final_episode_shows, config)
+
+        # ---- Returning Shows ----
+        create_returning_show_overlay_yaml("TSSK_TV_RETURNING_OVERLAYS.yml", 
+                                          {"backdrop": config.get("backdrop_returning", {}),
+                                           "text": config.get("text_returning", {})})
+        
+        create_returning_show_collection_yaml("TSSK_TV_RETURNING_COLLECTION.yml", config)
+        print(f"\n'Returning shows' overlay and collection .ymls created using TMDB status filtering")
+        
+        # ---- Ended Shows ----
+        create_ended_show_overlay_yaml("TSSK_TV_ENDED_OVERLAYS.yml", 
+                                     {"backdrop": config.get("backdrop_ended", {}),
+                                      "text": config.get("text_ended", {})})
+        
+        create_ended_show_collection_yaml("TSSK_TV_ENDED_COLLECTION.yml", config)
+        print(f"'Ended shows' overlay and collection .ymls created using TMDB status filtering")
+        
+        # ---- Canceled Shows ----
+        create_canceled_show_overlay_yaml("TSSK_TV_CANCELED_OVERLAYS.yml", 
+                                         {"backdrop": config.get("backdrop_canceled", {}),
+                                          "text": config.get("text_canceled", {})})
+        
+        create_canceled_show_collection_yaml("TSSK_TV_CANCELED_COLLECTION.yml", config)
+        print(f"'Canceled shows' overlay and collection .ymls created using TMDB status filtering")
 
         # ---- skipped Shows ----
         if skipped_shows:
             print(f"\n{ORANGE}Skipped shows (unmonitored or new show):{RESET}")
             for show in skipped_shows:
                 print(f"- {show['title']} (Season {show['seasonNumber']}) airs on {show['airDate']}")        
-        # ---- Ended Shows ----
-        # The find_ended_shows function doesn't have a skip_unmonitored parameter
-        # as it's based on show status rather than monitoring status
-        ended_shows = find_ended_shows(sonarr_url, sonarr_api_key)
-        
-        # Filter out shows that are in the season finale or final episode categories
-        ended_shows = [show for show in ended_shows if show.get('tvdbId') not in all_excluded_tvdb_ids]
-        
-        # Add to excluded IDs for returning category
-        for show in ended_shows:
-            if show.get('tvdbId'):
-                all_included_tvdb_ids.add(show['tvdbId'])
-        
-#        if ended_shows:
-#            print(f"\n{GREEN}Shows that have ended:{RESET}")
-#            for show in ended_shows:
-#                print(f"- {show['title']}")
-        
-        create_overlay_yaml("TSSK_TV_ENDED_OVERLAYS.yml", ended_shows, 
-                           {"backdrop": config.get("backdrop_ended", {}),
-                            "text": config.get("text_ended", {})})
-        
-        create_collection_yaml("TSSK_TV_ENDED_COLLECTION.yml", ended_shows, config)
-        
-        # ---- Returning Shows ----
-        returning_shows = find_returning_shows(sonarr_url, sonarr_api_key, all_included_tvdb_ids)
-        
-        # Filter out shows that are in the season finale or final episode categories
-        returning_shows = [show for show in returning_shows if show.get('tvdbId') not in all_excluded_tvdb_ids]
-        
-#        if returning_shows:
-#            print(f"\n{GREEN}Shows that are continuing but don't have scheduled episodes:{RESET}")
-#            for show in returning_shows:
-#                print(f"- {show['title']}")
-        
-        create_overlay_yaml("TSSK_TV_RETURNING_OVERLAYS.yml", returning_shows, 
-                           {"backdrop": config.get("backdrop_returning", {}),
-                            "text": config.get("text_returning", {})})
-        
-        create_collection_yaml("TSSK_TV_RETURNING_COLLECTION.yml", returning_shows, config)
-        
-        print(f"\nAll YAML files created successfully")
+                
+        print(f"\nRun completed")
 
         # Calculate and display runtime
         end_time = datetime.now()

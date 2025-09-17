@@ -5,6 +5,41 @@ skip_unmonitored: true
 utc_offset: +0
 
 ################################################################################
+##########                         NEW SHOW:                          ##########
+################################################################################
+
+recent_days_new_show: 7
+
+collection_new_show:
+  collection_name: "New Show"
+  smart_label: added.desc
+  sort_title: "+1_2New Shows"
+  ignore_blank_results: true
+
+backdrop_new_show:
+  enable: true
+  back_color: "#EB3233"
+  back_height: 90
+  back_width: 950
+  horizontal_align: center
+  horizontal_offset: 0
+  vertical_align: bottom
+  vertical_offset: 20
+  group: TSSK_backdrop
+  weight: 50
+
+text_new_show:
+  use_text: "RECENTLY ADDED"
+  horizontal_align: center
+  horizontal_offset: 0
+  vertical_align: bottom
+  vertical_offset: 35
+  font_size: 70
+  font_color: "#FFFFFF"
+  group: TSSK_text
+  weight: 50
+
+################################################################################
 ##########                     NEW SEASON SOON:                       ##########
 ################################################################################
 
@@ -15,6 +50,9 @@ collection_new_season:
   smart_label: title.desc
   sort_title: "+1_2New Season Soon"
   ignore_blank_results: true
+  item_label: New Season Soon
+  non_item_remove_label: New Season Soon
+  build_collection: false
 
 backdrop_new_season:
   enable: true
@@ -26,7 +64,7 @@ backdrop_new_season:
   vertical_align: bottom
   vertical_offset: 20
   group: TSSK_backdrop
-  weight: 20
+  weight: 25
 
 text_new_season:
   date_format: "ddd dd/mm"
@@ -39,7 +77,7 @@ text_new_season:
   font_size: 70
   font_color: "#FFFFFF"
   group: TSSK_text
-  weight: 20
+  weight: 25
 
 ################################################################################
 ##########                    NEW SEASON STARTED:                     ##########
@@ -76,41 +114,6 @@ text_new_season_started:
   group: TSSK_text
   weight: 35
   
-################################################################################
-##########                         NEW SHOW:                          ##########
-################################################################################
-
-recent_days_new_show: 7
-
-collection_new_show:
-  collection_name: "New Show"
-  smart_label: title.desc
-  sort_title: "+1_2New Show"
-  ignore_blank_results: true
-
-backdrop_new_show:
-  enable: true
-  back_color: "#EB3233"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
-  group: TSSK_backdrop
-  weight: 40
-
-text_new_show:
-  use_text: "RECENTLY ADDED"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
-  font_size: 70
-  font_color: "#FFFFFF"
-  group: TSSK_text
-  weight: 40
-
 ################################################################################
 ##########                     UPCOMING EPISODE:                      ##########
 ################################################################################
@@ -186,18 +189,20 @@ text_upcoming_finale:
   weight: 40
 
 ################################################################################
-##########                           ENDED:                           ##########
+##########                     SEASON FINALE OUT:                     ##########
 ################################################################################
 
-collection_ended:
-  collection_name: "Ended Shows"
+recent_days_season_finale: 7
+
+collection_season_finale:
+  collection_name: "Season Finale"
   smart_label: title.desc
-  sort_title: "+1_2Ended Shows"
+  sort_title: "+1_2Season Finale"
   ignore_blank_results: true
 
-backdrop_ended:
-  enable: false
-  back_color: "#000000"
+backdrop_season_finale:
+  enable: true
+  back_color: "#ffb902"
   back_height: 90
   back_width: 950
   horizontal_align: center
@@ -205,18 +210,53 @@ backdrop_ended:
   vertical_align: bottom
   vertical_offset: 20
   group: TSSK_backdrop
-  weight: 10
+  weight: 30
 
-text_ended:
-  use_text: "E N D E D"
+text_season_finale:
+  use_text: "SEASON FINALE"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
-  vertical_offset: 50
+  vertical_offset: 35
   font_size: 70
-  font_color: "#00ff3d"
+  font_color: "#000000"
   group: TSSK_text
-  weight: 10
+  weight: 30
+
+################################################################################
+##########                     FINAL EPISODE OUT:                     ##########
+################################################################################
+
+recent_days_final_episode: 7
+
+collection_final_episode:
+  collection_name: "Final Episode"
+  smart_label: title.desc
+  sort_title: "+1_2Final Episode"
+  ignore_blank_results: true
+
+backdrop_final_episode:
+  enable: true
+  back_color: "#ffb902"
+  back_height: 90
+  back_width: 950
+  horizontal_align: center
+  horizontal_offset: 0
+  vertical_align: bottom
+  vertical_offset: 20
+  group: TSSK_backdrop
+  weight: 30
+
+text_final_episode:
+  use_text: "FINAL EPISODE"
+  horizontal_align: center
+  horizontal_offset: 0
+  vertical_align: bottom
+  vertical_offset: 35
+  font_size: 70
+  font_color: "#000000"
+  group: TSSK_text
+  weight: 30
 
 ################################################################################
 ##########                         RETURNING:                         ##########
@@ -252,20 +292,21 @@ text_returning:
   weight: 10
 
 ################################################################################
-##########                       SEASON FINALE:                       ##########
+##########                           ENDED:                           ##########
 ################################################################################
 
-recent_days_season_finale: 7
-
-collection_season_finale:
-  collection_name: "Season Finale"
+collection_ended:
+  collection_name: "Ended Shows"
   smart_label: title.desc
-  sort_title: "+1_2Season Finale"
+  sort_title: "+1_2Ended Shows"
   ignore_blank_results: true
+  item_label: ended_shows
+  non_item_remove_label: ended_shows
+  build_collection: false
 
-backdrop_season_finale:
-  enable: true
-  back_color: "#ffb902"
+backdrop_ended:
+  enable: false
+  back_color: "#000000"
   back_height: 90
   back_width: 950
   horizontal_align: center
@@ -273,34 +314,36 @@ backdrop_season_finale:
   vertical_align: bottom
   vertical_offset: 20
   group: TSSK_backdrop
-  weight: 30
+  weight: 10
 
-text_season_finale:
-  use_text: "SEASON FINALE"
+text_ended:
+  use_text: "E N D E D"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
-  vertical_offset: 35
+  vertical_offset: 50
   font_size: 70
-  font_color: "#000000"
+  font_color: "#00ff3d"
   group: TSSK_text
-  weight: 30
+  weight: 10
 
 ################################################################################
-##########                       FINAL EPISODE:                       ##########
+##########                         CANCELED:                          ##########
 ################################################################################
 
-recent_days_final_episode: 7
-
-collection_final_episode:
-  collection_name: "Final Episode"
+collection_canceled:
+  collection_name: "Canceled Shows"
   smart_label: title.desc
-  sort_title: "+1_2Final Episode"
+  sort_title: "+1_2Canceled Shows"
   ignore_blank_results: true
+  summary: Canceled shows test
+  item_label: canceled_shows
+  non_item_remove_label: canceled_shows
+  build_collection: false
 
-backdrop_final_episode:
-  enable: true
-  back_color: "#ffb902"
+backdrop_canceled:
+  enable: false
+  back_color: "#000000"
   back_height: 90
   back_width: 950
   horizontal_align: center
@@ -308,15 +351,15 @@ backdrop_final_episode:
   vertical_align: bottom
   vertical_offset: 20
   group: TSSK_backdrop
-  weight: 30
+  weight: 10
 
-text_final_episode:
-  use_text: "FINAL EPISODE"
+text_canceled:
+  use_text: "C A N C E L E D"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
-  vertical_offset: 35
+  vertical_offset: 50
   font_size: 70
-  font_color: "#000000"
+  font_color: "#EB3233"
   group: TSSK_text
-  weight: 30
+  weight: 10
