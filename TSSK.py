@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.4"
+VERSION = "2.5"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1041,7 +1041,7 @@ def create_returning_show_overlay_yaml(output_file, config_sections):
                 "tmdb_status": "returning",
                 "label.not": "coming soon"
             },
-            "overlay": backdrop_config
+            "overlay": text_config
         }
     
     final_output = {"overlays": overlays_dict}
