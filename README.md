@@ -191,6 +191,7 @@ Rename `config.example.yml` to `config.yml` and edit the needed settings:
 
 - **sonarr_url:** Change if needed.
 - **sonarr_api_key:** Can be found in Sonarr under settings => General => Security.
+- **use_tvdb:** Change to `true` if you prefer TheTVDB statuses for returning and ended. (note: TheTVDB does not have the 'canceled' status)
 - **skip_unmonitored:** Default `true` will skip a show if the upcoming season/episode is unmonitored.
 - **ignore_finales_tags:** Shows with these tags will be ignored when checking for finales.
 >[!NOTE]
