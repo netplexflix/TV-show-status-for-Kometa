@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.5"
+VERSION = "2.6"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -114,17 +114,32 @@ def process_sonarr_url(base_url, api_key):
                         "\n".join([f"- {base_url}{path}" for path in api_paths]) + 
                         f"\nPlease verify your URL and API key and ensure Sonarr is running.{RESET}")
 
-def get_sonarr_series(sonarr_url, api_key):
+def get_sonarr_series_and_tags(sonarr_url, api_key):
     try:
-        url = f"{sonarr_url}/series"
+        # Fetch series
+        series_url = f"{sonarr_url}/series"
         headers = {"X-Api-Key": api_key}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        return response.json()
+        series_response = requests.get(series_url, headers=headers, timeout=10)
+        series_response.raise_for_status()
+        series_data = series_response.json()
+        
+        # Fetch tags
+        tags_url = f"{sonarr_url}/tag"
+        tags_response = requests.get(tags_url, headers=headers, timeout=10)
+        tags_response.raise_for_status()
+        tags_data = tags_response.json()
+        
+        # Create tag mapping
+        tag_mapping = {}
+        for tag in tags_data:
+            tag_mapping[tag.get('id')] = tag.get('label', '').lower()
+        
+        return series_data, tag_mapping
+        
     except requests.exceptions.RequestException as e:
         print(f"{ORANGE}Warning: Error connecting to Sonarr: {str(e)}{RESET}")
         print(f"{ORANGE}Continuing with empty series list...{RESET}")
-        return []
+        return [], {}
 
 def get_sonarr_episodes(sonarr_url, api_key, series_id):
     try:
@@ -138,13 +153,30 @@ def get_sonarr_episodes(sonarr_url, api_key, series_id):
         print(f"{ORANGE}Skipping this series and continuing...{RESET}")
         return []
 
+def has_ignore_finale_tag(series, ignore_finales_tags, tag_mapping):
+    if not ignore_finales_tags or not tag_mapping:
+        return False
+    
+    series_tags = series.get('tags', [])
+    if not series_tags:
+        return False
+    
+    ignore_tags_lower = [tag.strip().lower() for tag in ignore_finales_tags]
+
+    for tag_id in series_tags:
+        tag_name = tag_mapping.get(tag_id, '').lower()
+        if tag_name in ignore_tags_lower:
+            return True
+    
+    return False
+
 def find_new_season_shows(sonarr_url, api_key, future_days_new_season, utc_offset=0, skip_unmonitored=False):
     cutoff_date = datetime.now(timezone.utc) + timedelta(days=future_days_new_season)
     now_local = datetime.now(timezone.utc) + timedelta(hours=utc_offset)
     matched_shows = []
     skipped_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
         episodes = get_sonarr_episodes(sonarr_url, api_key, series['id'])
@@ -230,17 +262,20 @@ def find_new_season_shows(sonarr_url, api_key, future_days_new_season, utc_offse
     
     return matched_shows, skipped_shows
 
-def find_upcoming_regular_episodes(sonarr_url, api_key, future_days_upcoming_episode, utc_offset=0, skip_unmonitored=False):
+def find_upcoming_regular_episodes(sonarr_url, api_key, future_days_upcoming_episode, utc_offset=0, skip_unmonitored=False, ignore_finales_tags=None, tag_mapping=None):
     """Find shows with upcoming non-premiere, non-finale episodes within the specified days"""
     cutoff_date = datetime.now(timezone.utc) + timedelta(days=future_days_upcoming_episode)
     now_local = datetime.now(timezone.utc) + timedelta(hours=utc_offset)
     matched_shows = []
     skipped_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
         episodes = get_sonarr_episodes(sonarr_url, api_key, series['id'])
+        
+        # Check if this series should ignore finale detection
+        should_ignore_finales = has_ignore_finale_tag(series, ignore_finales_tags, tag_mapping)
         
         # Group episodes by season
         seasons = defaultdict(list)
@@ -250,10 +285,11 @@ def find_upcoming_regular_episodes(sonarr_url, api_key, future_days_upcoming_epi
         
         # For each season, find the max episode number to identify finales
         season_finales = {}
-        for season_num, season_eps in seasons.items():
-            if season_eps:
-                max_ep = max(ep.get('episodeNumber', 0) for ep in season_eps)
-                season_finales[season_num] = max_ep
+        if not should_ignore_finales:
+            for season_num, season_eps in seasons.items():
+                if season_eps:
+                    max_ep = max(ep.get('episodeNumber', 0) for ep in season_eps)
+                    season_finales[season_num] = max_ep
         
         future_episodes = []
         for ep in episodes:
@@ -288,10 +324,11 @@ def find_upcoming_regular_episodes(sonarr_url, api_key, future_days_upcoming_epi
         if episode_num == 1:
             continue
             
-        # Skip season finales
-        is_episode_finale = season_num in season_finales and episode_num == season_finales[season_num]
-        if is_episode_finale:
-            continue
+        # Skip season finales (only if not ignoring finales)
+        if not should_ignore_finales:
+            is_episode_finale = season_num in season_finales and episode_num == season_finales[season_num]
+            if is_episode_finale:
+                continue
         
         tvdb_id = series.get('tvdbId')
         air_date_str_yyyy_mm_dd = air_date.date().isoformat()
@@ -321,15 +358,19 @@ def find_upcoming_regular_episodes(sonarr_url, api_key, future_days_upcoming_epi
     
     return matched_shows, skipped_shows
 
-def find_upcoming_finales(sonarr_url, api_key, future_days_upcoming_finale, utc_offset=0, skip_unmonitored=False):
+def find_upcoming_finales(sonarr_url, api_key, future_days_upcoming_finale, utc_offset=0, skip_unmonitored=False, ignore_finales_tags=None, tag_mapping=None):
     """Find shows with upcoming season finales within the specified days"""
     cutoff_date = datetime.now(timezone.utc) + timedelta(days=future_days_upcoming_finale)
     matched_shows = []
     skipped_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
+        # Skip shows with ignore finale tags
+        if has_ignore_finale_tag(series, ignore_finales_tags, tag_mapping):
+            continue
+            
         episodes = get_sonarr_episodes(sonarr_url, api_key, series['id'])
         
         # Group episodes by season
@@ -411,17 +452,21 @@ def find_upcoming_finales(sonarr_url, api_key, future_days_upcoming_finale, utc_
     
     return matched_shows, skipped_shows
 
-def find_recent_season_finales(sonarr_url, api_key, recent_days_season_finale, utc_offset=0, skip_unmonitored=False):
+def find_recent_season_finales(sonarr_url, api_key, recent_days_season_finale, utc_offset=0, skip_unmonitored=False, ignore_finales_tags=None, tag_mapping=None):
     """Find shows with status 'continuing' that had a season finale air within the specified days or have a future finale that's already downloaded"""
     now_local = datetime.now(timezone.utc) + timedelta(hours=utc_offset)
     cutoff_date = now_local - timedelta(days=recent_days_season_finale)
     matched_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
         # Only include continuing shows
         if series.get('status') not in ['continuing', 'upcoming']:
+            continue
+            
+        # Skip shows with ignore finale tags
+        if has_ignore_finale_tag(series, ignore_finales_tags, tag_mapping):
             continue
         
         # Skip unmonitored shows if requested
@@ -510,17 +555,21 @@ def find_recent_season_finales(sonarr_url, api_key, recent_days_season_finale, u
     
     return matched_shows
 
-def find_recent_final_episodes(sonarr_url, api_key, recent_days_final_episode, utc_offset=0, skip_unmonitored=False):
+def find_recent_final_episodes(sonarr_url, api_key, recent_days_final_episode, utc_offset=0, skip_unmonitored=False, ignore_finales_tags=None, tag_mapping=None):
     """Find shows with status 'ended' that had their final episode air within the specified days or have a future final episode that's already downloaded"""
     now_local = datetime.now(timezone.utc) + timedelta(hours=utc_offset)
     cutoff_date = now_local - timedelta(days=recent_days_final_episode)
     matched_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
         # Only include ended shows
         if series.get('status') != 'ended':
+            continue
+            
+        # Skip shows with ignore finale tags
+        if has_ignore_finale_tag(series, ignore_finales_tags, tag_mapping):
             continue
             
         # Skip unmonitored shows if requested
@@ -634,7 +683,7 @@ def find_new_season_started(sonarr_url, api_key, recent_days_new_season_started,
     cutoff_date = now_local - timedelta(days=recent_days_new_season_started)
     matched_shows = []
     
-    all_series = get_sonarr_series(sonarr_url, api_key)
+    all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, api_key)
     
     for series in all_series:
         # Skip unmonitored shows if requested
@@ -1501,6 +1550,15 @@ def main():
         sonarr_url = process_sonarr_url(config['sonarr_url'], config['sonarr_api_key'])
         sonarr_api_key = config['sonarr_api_key']
         
+        # Get series and tags from Sonarr in one call
+        all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, sonarr_api_key)
+        
+        # Get ignore_finales_tags configuration
+        ignore_finales_tags_config = config.get('ignore_finales_tags', '')
+        ignore_finales_tags = []
+        if ignore_finales_tags_config:
+            ignore_finales_tags = [tag.strip() for tag in ignore_finales_tags_config.split(',') if tag.strip()]
+        
         # Get category-specific future_days values, with fallback to main future_days
         future_days = config.get('future_days', 14)
         future_days_new_season = config.get('future_days_new_season', future_days)
@@ -1524,7 +1582,8 @@ def main():
         print(f"recent_days_season_finale: {recent_days_season_finale}")
         print(f"recent_days_final_episode: {recent_days_final_episode}")
         print(f"recent_days_new_show: {recent_days_new_show}")
-        print(f"skip_unmonitored: {skip_unmonitored}\n")
+        print(f"skip_unmonitored: {skip_unmonitored}")
+        print(f"ignore_finales_tags: {ignore_finales_tags}\n")
         print(f"UTC offset: {utc_offset} hours\n")
 
         # Track all tvdbIds to exclude from other categories
@@ -1581,7 +1640,7 @@ def main():
 
         # ---- Upcoming Regular Episodes ----
         upcoming_eps, skipped_eps = find_upcoming_regular_episodes(
-            sonarr_url, sonarr_api_key, future_days_upcoming_episode, utc_offset, skip_unmonitored
+            sonarr_url, sonarr_api_key, future_days_upcoming_episode, utc_offset, skip_unmonitored, ignore_finales_tags, tag_mapping
         )
         
         # Filter out shows that are in the season finale or final episode categories
@@ -1600,7 +1659,7 @@ def main():
 
         # ---- Upcoming Finale Episodes ----
         finale_eps, skipped_finales = find_upcoming_finales(
-            sonarr_url, sonarr_api_key, future_days_upcoming_finale, utc_offset, skip_unmonitored
+            sonarr_url, sonarr_api_key, future_days_upcoming_finale, utc_offset, skip_unmonitored, ignore_finales_tags, tag_mapping
         )
                 
         if finale_eps:
@@ -1616,7 +1675,7 @@ def main():
         
         # ---- Recent Season Finales ----
         season_finale_shows = find_recent_season_finales(
-            sonarr_url, sonarr_api_key, recent_days_season_finale, utc_offset, skip_unmonitored
+            sonarr_url, sonarr_api_key, recent_days_season_finale, utc_offset, skip_unmonitored, ignore_finales_tags, tag_mapping
         )
         
         # Add to excluded IDs
@@ -1637,7 +1696,7 @@ def main():
         
         # ---- Recent Final Episodes ----
         final_episode_shows = find_recent_final_episodes(
-            sonarr_url, sonarr_api_key, recent_days_final_episode, utc_offset
+            sonarr_url, sonarr_api_key, recent_days_final_episode, utc_offset, skip_unmonitored, ignore_finales_tags, tag_mapping
         )
         
         # Add to excluded IDs

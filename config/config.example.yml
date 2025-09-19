@@ -2,6 +2,7 @@ sonarr_url: 'http://localhost:8989'
 sonarr_api_key: 'YOUR_SONARR_API_KEY'
 
 skip_unmonitored: true
+ignore_finales_tags: ignorefinales
 utc_offset: +0
 
 ################################################################################
