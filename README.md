@@ -192,6 +192,11 @@ Rename `config.example.yml` to `config.yml` and edit the needed settings:
 - **sonarr_url:** Change if needed.
 - **sonarr_api_key:** Can be found in Sonarr under settings => General => Security.
 - **skip_unmonitored:** Default `true` will skip a show if the upcoming season/episode is unmonitored.
+- **ignore_finales_tags:** Shows with these tags will be ignored when checking for finales.
+>[!NOTE]
+> For some shows, episodes are listed one at a time usually one week ahead in TheTVDB/Sonarr. Because of this, TSSK wrongly (yet logically..) thinks that the last episode listed in the season is a finale.
+> You can give problematic shows like this a tag in Sonarr so TSSK will ignore finales for that show and treat the current 'last' episode of the season as a regular episode.
+
 - **utc_offset:** Set the [UTC timezone](https://en.wikipedia.org/wiki/List_of_UTC_offsets) offset. e.g.: LA: -8, New York: -5, Amsterdam: +1, Tokyo: +9, etc
 
 >[!NOTE]
