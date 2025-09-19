@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2.6"
+VERSION = "2025.09.19"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -976,7 +976,7 @@ def create_new_show_collection_yaml(output_file, config, recent_days):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
-def create_returning_show_collection_yaml(output_file, config):
+def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for returning shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1019,7 +1019,9 @@ def create_returning_show_collection_yaml(output_file, config):
     
     # Add plex_all and filters instead of tvdb_show
     collection_data["plex_all"] = True
-    collection_data["filters"] = {"tmdb_status": "returning"}
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    status_value = "continuing" if use_tvdb else "returning"
+    collection_data["filters"] = {status_filter: status_value}
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1049,7 +1051,8 @@ def create_returning_show_collection_yaml(output_file, config):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
-def create_returning_show_overlay_yaml(output_file, config_sections):
+
+def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
     """Create overlay YAML for returning shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1062,12 +1065,15 @@ def create_returning_show_overlay_yaml(output_file, config_sections):
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    status_value = "continuing" if use_tvdb else "returning"
+    
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
         overlays_dict["backdrop"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "returning",
+                status_filter: status_value,
                 "label.not": "coming soon"
             },
             "overlay": backdrop_config
@@ -1087,7 +1093,7 @@ def create_returning_show_overlay_yaml(output_file, config_sections):
         overlays_dict["returning_show"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "returning",
+                status_filter: status_value,
                 "label.not": "coming soon"
             },
             "overlay": text_config
@@ -1098,7 +1104,8 @@ def create_returning_show_overlay_yaml(output_file, config_sections):
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
 
-def create_ended_show_collection_yaml(output_file, config):
+
+def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for ended shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1141,7 +1148,8 @@ def create_ended_show_collection_yaml(output_file, config):
     
     # Add plex_all and filters instead of tvdb_show
     collection_data["plex_all"] = True
-    collection_data["filters"] = {"tmdb_status": "ended"}
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    collection_data["filters"] = {status_filter: "ended"}
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1220,7 +1228,7 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
 
-def create_ended_show_overlay_yaml(output_file, config_sections):
+def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
     """Create overlay YAML for ended shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1233,12 +1241,14 @@ def create_ended_show_overlay_yaml(output_file, config_sections):
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
         overlays_dict["backdrop"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "ended",
+                status_filter: "ended",
                 "label.not": "coming soon"
             },
             "overlay": backdrop_config
@@ -1258,7 +1268,7 @@ def create_ended_show_overlay_yaml(output_file, config_sections):
         overlays_dict["ended_show"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "ended",
+                status_filter: "ended",
                 "label.not": "coming soon"
             },
             "overlay": text_config
@@ -1269,7 +1279,7 @@ def create_ended_show_overlay_yaml(output_file, config_sections):
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
 
-def create_canceled_show_collection_yaml(output_file, config):
+def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for canceled shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1312,7 +1322,8 @@ def create_canceled_show_collection_yaml(output_file, config):
     
     # Add plex_all and filters instead of tvdb_show
     collection_data["plex_all"] = True
-    collection_data["filters"] = {"tmdb_status": "canceled"}
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    collection_data["filters"] = {status_filter: "canceled"}
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1342,7 +1353,7 @@ def create_canceled_show_collection_yaml(output_file, config):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
-def create_canceled_show_overlay_yaml(output_file, config_sections):
+def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
     """Create overlay YAML for canceled shows using Plex filters"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
@@ -1355,12 +1366,14 @@ def create_canceled_show_overlay_yaml(output_file, config_sections):
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+    
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
         overlays_dict["backdrop"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "canceled",
+                status_filter: "canceled",
                 "label.not": "coming soon"
             },
             "overlay": backdrop_config
@@ -1380,7 +1393,7 @@ def create_canceled_show_overlay_yaml(output_file, config_sections):
         overlays_dict["canceled_show"] = {
             "plex_all": True,
             "filters": {
-                "tmdb_status": "canceled",
+                status_filter: "canceled",
                 "label.not": "coming soon"
             },
             "overlay": text_config
@@ -1540,7 +1553,7 @@ def create_collection_yaml(output_file, shows, config):
 
 def main():
     start_time = datetime.now()
-    print(f"{BLUE}{'*' * 40}\n{'*' * 15} TSSK {VERSION} {'*' * 15}\n{'*' * 40}{RESET}")
+    print(f"{BLUE}{'*' * 40}\n{'*' * 11} TSSK {VERSION} {'*' * 12}\n{'*' * 40}{RESET}")
     check_for_updates()
 
     config = load_config('config/config.yml')
@@ -1558,6 +1571,9 @@ def main():
         ignore_finales_tags = []
         if ignore_finales_tags_config:
             ignore_finales_tags = [tag.strip() for tag in ignore_finales_tags_config.split(',') if tag.strip()]
+        
+        # Get use_tvdb configuration
+        use_tvdb = config.get('use_tvdb', False)
         
         # Get category-specific future_days values, with fallback to main future_days
         future_days = config.get('future_days', 14)
@@ -1718,26 +1734,26 @@ def main():
         # ---- Returning Shows ----
         create_returning_show_overlay_yaml("TSSK_TV_RETURNING_OVERLAYS.yml", 
                                           {"backdrop": config.get("backdrop_returning", {}),
-                                           "text": config.get("text_returning", {})})
+                                           "text": config.get("text_returning", {})}, use_tvdb)
         
-        create_returning_show_collection_yaml("TSSK_TV_RETURNING_COLLECTION.yml", config)
-        print(f"\n'Returning shows' overlay and collection .ymls created using TMDB status filtering")
+        create_returning_show_collection_yaml("TSSK_TV_RETURNING_COLLECTION.yml", config, use_tvdb)
+        print(f"\n'Returning shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
         
         # ---- Ended Shows ----
         create_ended_show_overlay_yaml("TSSK_TV_ENDED_OVERLAYS.yml", 
                                      {"backdrop": config.get("backdrop_ended", {}),
-                                      "text": config.get("text_ended", {})})
+                                      "text": config.get("text_ended", {})}, use_tvdb)
         
-        create_ended_show_collection_yaml("TSSK_TV_ENDED_COLLECTION.yml", config)
-        print(f"'Ended shows' overlay and collection .ymls created using TMDB status filtering")
+        create_ended_show_collection_yaml("TSSK_TV_ENDED_COLLECTION.yml", config, use_tvdb)
+        print(f"'Ended shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
         
         # ---- Canceled Shows ----
         create_canceled_show_overlay_yaml("TSSK_TV_CANCELED_OVERLAYS.yml", 
                                          {"backdrop": config.get("backdrop_canceled", {}),
-                                          "text": config.get("text_canceled", {})})
+                                          "text": config.get("text_canceled", {})}, use_tvdb)
         
-        create_canceled_show_collection_yaml("TSSK_TV_CANCELED_COLLECTION.yml", config)
-        print(f"'Canceled shows' overlay and collection .ymls created using TMDB status filtering")
+        create_canceled_show_collection_yaml("TSSK_TV_CANCELED_COLLECTION.yml", config, use_tvdb)
+        print(f"'Canceled shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
 
         # ---- skipped Shows ----
         if skipped_shows:
