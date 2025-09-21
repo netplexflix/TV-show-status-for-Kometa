@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.09.19"
+VERSION = "2025.09.21"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -976,6 +976,53 @@ def create_new_show_collection_yaml(output_file, config, recent_days):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
+def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
+    """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, output_file)
+    
+    overlays_dict = {}
+    
+    # -- Backdrop Block --
+    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+    enable_backdrop = backdrop_config.pop("enable", True)
+    
+    if enable_backdrop:
+        backdrop_config["name"] = "backdrop"
+        overlays_dict["backdrop"] = {
+            "plex_all": True,
+            "filters": {
+                "added": recent_days
+            },
+            "overlay": backdrop_config
+        }
+    
+    # -- Text Block --
+    text_config = deepcopy(config_sections.get("text", {}))
+    enable_text = text_config.pop("enable", True)
+    
+    if enable_text:
+        use_text = text_config.pop("use_text", "New Show")
+        text_config.pop("date_format", None)  # Remove if present
+        text_config.pop("capitalize_dates", None)  # Remove if present
+        
+        text_config["name"] = f"text({use_text})"
+        
+        overlays_dict["new_show"] = {
+            "plex_all": True,
+            "filters": {
+                "added": recent_days
+            },
+            "overlay": text_config
+        }
+    
+    final_output = {"overlays": overlays_dict}
+    
+    with open(output_file, "w", encoding="utf-8") as f:
+        yaml.dump(final_output, f, sort_keys=False)
+
 def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for returning shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
@@ -1001,6 +1048,9 @@ def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     collection_config = deepcopy(config.get("collection_returning", {}))
     collection_name = collection_config.pop("collection_name", "Returning Shows")
     summary = "Returning Shows without upcoming episodes within the chosen timeframes"
+    
+    # Extract additional filters from config
+    additional_filters = collection_config.pop("filters", {})
 
     # Create the collection data structure as a regular dict
     collection_data = {}
@@ -1021,7 +1071,11 @@ def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     collection_data["plex_all"] = True
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
     status_value = "continuing" if use_tvdb else "returning"
-    collection_data["filters"] = {status_filter: status_value}
+    
+    # Create filters dict with status filter first, then additional filters
+    filters_dict = {status_filter: status_value}
+    filters_dict.update(additional_filters)
+    collection_data["filters"] = filters_dict
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1065,23 +1119,31 @@ def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=Fa
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    # Extract additional filters from backdrop config
+    backdrop_additional_filters = backdrop_config.pop("filters", {})
+    
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
     status_value = "continuing" if use_tvdb else "returning"
     
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
+        
+        # Create filters dict with status filter first, then additional filters
+        backdrop_filters = {status_filter: status_value}
+        backdrop_filters.update(backdrop_additional_filters)
+        
         overlays_dict["backdrop"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: status_value,
-                "label.not": "coming soon"
-            },
+            "filters": backdrop_filters,
             "overlay": backdrop_config
         }
     
     # -- Text Block --
     text_config = deepcopy(config_sections.get("text", {}))
     enable_text = text_config.pop("enable", True)
+    
+    # Extract additional filters from text config
+    text_additional_filters = text_config.pop("filters", {})
     
     if enable_text:
         use_text = text_config.pop("use_text", "Returning")
@@ -1090,12 +1152,13 @@ def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=Fa
         
         text_config["name"] = f"text({use_text})"
         
+        # Create filters dict with status filter first, then additional filters
+        text_filters = {status_filter: status_value}
+        text_filters.update(text_additional_filters)
+        
         overlays_dict["returning_show"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: status_value,
-                "label.not": "coming soon"
-            },
+            "filters": text_filters,
             "overlay": text_config
         }
     
@@ -1130,6 +1193,9 @@ def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
     collection_config = deepcopy(config.get("collection_ended", {}))
     collection_name = collection_config.pop("collection_name", "Ended Shows")
     summary = "Shows that have ended"
+    
+    # Extract additional filters from config
+    additional_filters = collection_config.pop("filters", {})
 
     # Create the collection data structure as a regular dict
     collection_data = {}
@@ -1149,7 +1215,11 @@ def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
     # Add plex_all and filters instead of tvdb_show
     collection_data["plex_all"] = True
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    collection_data["filters"] = {status_filter: "ended"}
+    
+    # Create filters dict with status filter first, then additional filters
+    filters_dict = {status_filter: "ended"}
+    filters_dict.update(additional_filters)
+    collection_data["filters"] = filters_dict
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1179,54 +1249,6 @@ def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
-def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
-    """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
-    # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-    
-    overlays_dict = {}
-    
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    enable_backdrop = backdrop_config.pop("enable", True)
-    
-    if enable_backdrop:
-        backdrop_config["name"] = "backdrop"
-        overlays_dict["backdrop"] = {
-            "plex_all": True,
-            "filters": {
-                "added": recent_days,
-                "label.not": "Coming Soon"
-            },
-            "overlay": backdrop_config
-        }
-    
-    # -- Text Block --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    if enable_text:
-        use_text = text_config.pop("use_text", "New Show")
-        text_config.pop("date_format", None)  # Remove if present
-        text_config.pop("capitalize_dates", None)  # Remove if present
-        
-        text_config["name"] = f"text({use_text})"
-        
-        overlays_dict["new_show"] = {
-            "plex_all": True,
-            "filters": {
-                "added": recent_days,
-                "label.not": "Coming Soon"
-            },
-            "overlay": text_config
-        }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
 
 def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
     """Create overlay YAML for ended shows using Plex filters instead of Sonarr data"""  
@@ -1241,22 +1263,30 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False)
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    # Extract additional filters from backdrop config
+    backdrop_additional_filters = backdrop_config.pop("filters", {})
+    
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
     
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
+        
+        # Create filters dict with status filter first, then additional filters
+        backdrop_filters = {status_filter: "ended"}
+        backdrop_filters.update(backdrop_additional_filters)
+        
         overlays_dict["backdrop"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: "ended",
-                "label.not": "coming soon"
-            },
+            "filters": backdrop_filters,
             "overlay": backdrop_config
         }
     
     # -- Text Block --
     text_config = deepcopy(config_sections.get("text", {}))
     enable_text = text_config.pop("enable", True)
+    
+    # Extract additional filters from text config
+    text_additional_filters = text_config.pop("filters", {})
     
     if enable_text:
         use_text = text_config.pop("use_text", "Ended")
@@ -1265,12 +1295,13 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False)
         
         text_config["name"] = f"text({use_text})"
         
+        # Create filters dict with status filter first, then additional filters
+        text_filters = {status_filter: "ended"}
+        text_filters.update(text_additional_filters)
+        
         overlays_dict["ended_show"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: "ended",
-                "label.not": "coming soon"
-            },
+            "filters": text_filters,
             "overlay": text_config
         }
     
@@ -1278,6 +1309,7 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False)
     
     with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(final_output, f, sort_keys=False)
+
 
 def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for canceled shows using Plex filters instead of Sonarr data"""
@@ -1304,6 +1336,9 @@ def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     collection_config = deepcopy(config.get("collection_canceled", {}))
     collection_name = collection_config.pop("collection_name", "Canceled Shows")
     summary = "Shows that have been canceled"
+    
+    # Extract additional filters from config
+    additional_filters = collection_config.pop("filters", {})
 
     # Create the collection data structure as a regular dict
     collection_data = {}
@@ -1323,7 +1358,11 @@ def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     # Add plex_all and filters instead of tvdb_show
     collection_data["plex_all"] = True
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    collection_data["filters"] = {status_filter: "canceled"}
+    
+    # Create filters dict with status filter first, then additional filters
+    filters_dict = {status_filter: "canceled"}
+    filters_dict.update(additional_filters)
+    collection_data["filters"] = filters_dict
 
     # Create the final structure with ordered keys
     ordered_collection = OrderedDict()
@@ -1353,6 +1392,7 @@ def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
         # Use SafeDumper so our custom representer is used
         yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
 
+
 def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
     """Create overlay YAML for canceled shows using Plex filters"""  
     # Ensure the directory exists
@@ -1366,22 +1406,30 @@ def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=Fal
     backdrop_config = deepcopy(config_sections.get("backdrop", {}))
     enable_backdrop = backdrop_config.pop("enable", True)
     
+    # Extract additional filters from backdrop config
+    backdrop_additional_filters = backdrop_config.pop("filters", {})
+    
     status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
     
     if enable_backdrop:
         backdrop_config["name"] = "backdrop"
+        
+        # Create filters dict with status filter first, then additional filters
+        backdrop_filters = {status_filter: "canceled"}
+        backdrop_filters.update(backdrop_additional_filters)
+        
         overlays_dict["backdrop"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: "canceled",
-                "label.not": "coming soon"
-            },
+            "filters": backdrop_filters,
             "overlay": backdrop_config
         }
     
     # -- Text Block --
     text_config = deepcopy(config_sections.get("text", {}))
     enable_text = text_config.pop("enable", True)
+    
+    # Extract additional filters from text config
+    text_additional_filters = text_config.pop("filters", {})
     
     if enable_text:
         use_text = text_config.pop("use_text", "Canceled")
@@ -1390,12 +1438,13 @@ def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=Fal
         
         text_config["name"] = f"text({use_text})"
         
+        # Create filters dict with status filter first, then additional filters
+        text_filters = {status_filter: "canceled"}
+        text_filters.update(text_additional_filters)
+        
         overlays_dict["canceled_show"] = {
             "plex_all": True,
-            "filters": {
-                status_filter: "canceled",
-                "label.not": "coming soon"
-            },
+            "filters": text_filters,
             "overlay": text_config
         }
     
