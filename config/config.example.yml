@@ -1,3 +1,8 @@
+################################################################################
+##########                         GENERAL:                           ##########
+################################################################################
+
+
 sonarr_url: 'http://localhost:8989'
 sonarr_api_key: 'YOUR_SONARR_API_KEY'
 use_tvdb: false
@@ -5,6 +10,17 @@ use_tvdb: false
 skip_unmonitored: true
 ignore_finales_tags: ignorefinales
 utc_offset: +0
+
+process_new_shows: true
+process_new_season_soon: true
+process_new_season_started: true
+process_upcoming_episode: true
+process_upcoming_finale: true
+process_season_finale: true
+process_final_episode: true
+process_returning_shows: true
+process_ended_shows: true
+process_canceled_shows: true
 
 ################################################################################
 ##########                         NEW SHOW:                          ##########
@@ -95,7 +111,7 @@ collection_new_season_started:
 
 backdrop_new_season_started:
   enable: true
-  back_color: "#EB3233"
+  back_color: "#228B22"
   back_height: 90
   back_width: 950
   horizontal_align: center
