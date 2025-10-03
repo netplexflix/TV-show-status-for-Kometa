@@ -117,21 +117,21 @@ def process_sonarr_url(base_url, api_key):
 def get_sonarr_series_and_tags(sonarr_url, api_key):
     try:
         # Fetch series
-        print(f"{BLUE}Fetching series from Sonarr...{RESET}", end='', flush=True)
+        print(f"{BLUE}Fetching series from Sonarr...{RESET}", flush=True)
         series_url = f"{sonarr_url}/series"
         headers = {"X-Api-Key": api_key}
         series_response = requests.get(series_url, headers=headers, timeout=90)
         series_response.raise_for_status()
         series_data = series_response.json()
-        print(f" {GREEN}✓ ({len(series_data)} series){RESET}")
+        print(f"{GREEN}Done ✓ ({len(series_data)} series){RESET}")
         
         # Fetch tags
-        print(f"{BLUE}Fetching tags from Sonarr...{RESET}", end='', flush=True)
+        print(f"{BLUE}Fetching tags from Sonarr...{RESET}", flush=True)
         tags_url = f"{sonarr_url}/tag"
         tags_response = requests.get(tags_url, headers=headers, timeout=90)
         tags_response.raise_for_status()
         tags_data = tags_response.json()
-        print(f" {GREEN}✓ ({len(tags_data)} tags){RESET}\n")
+        print(f"{GREEN}Done ✓ ({len(tags_data)} tags){RESET}\n")
         
         # Create tag mapping
         tag_mapping = {}
