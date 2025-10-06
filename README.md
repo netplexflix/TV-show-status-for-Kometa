@@ -25,6 +25,20 @@ Example collection:</br>
 
 ---
 
+## 📝 Table of Contents
+* [✨ Features](#-features)
+* [🛠️ Installation](#-installation)
+    * [▶️ Option 1: Manual (Python)](#-option-1-manual-python)
+    * [▶️ Option 2: Docker](#-option-2-docker)
+    * [🧩 Continue Setup](#-continue-setup)
+        * [1️⃣ Edit your Kometa config](#1-edit-your-kometa-config)
+        * [2️⃣ Edit your configuration file](#2-edit-your-configuration-file)
+* [⚙️ Configuration](#-configuration)
+* [🚀 Usage - Running the Script](#-usage---running-the-script)
+* [⚠️ Do you Need Help or have Feedback?](#️-do-you-need-help-or-have-feedback)
+  
+---
+
 ## ✨ Features
 - 🗓️ **Detects upcoming episodes, finales and seasons**: Searches Sonarr for TV show schedules.
 - 🏁 **Aired Finale labelling**: Use a separate overlay for shows for which a Finale was added.
@@ -191,6 +205,7 @@ Rename `config.example.yml` to `config.yml` and edit the needed settings:
 
 - **sonarr_url:** Change if needed.
 - **sonarr_api_key:** Can be found in Sonarr under settings => General => Security.
+- **sonarr_timeout:** Increase if needed for large libraries.
 - **use_tvdb:** Change to `true` if you prefer TheTVDB statuses for returning and ended. (note: TheTVDB does not have the 'canceled' status)
 - **skip_unmonitored:** Default `true` will skip a show if the upcoming season/episode is unmonitored.
 - **ignore_finales_tags:** Shows with these tags will be ignored when checking for finales.
@@ -287,13 +302,7 @@ The previous configuration will be erased so Kometa will automatically remove ov
 
 ### ⚠️ **Do you Need Help or have Feedback?**
 - Join the [Discord](https://discord.gg/VBNUJd7tx3).
-
----
-## ？ FAQ
-**Is there a docker container?**<br/>
-I made this for my personal use. I don't use docker myself and have no plans atm to learn how to make dockerfiles.<br/>
-If anyone wants to help make one, please feel free to create a pull request!
-  
+ 
 ---  
 ### ❤️ Support the Project
 If you like this project, please ⭐ star the repository and share it with the community!

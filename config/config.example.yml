@@ -5,6 +5,7 @@
 
 sonarr_url: 'http://localhost:8989'
 sonarr_api_key: 'YOUR_SONARR_API_KEY'
+sonarr_timeout: 90
 use_tvdb: false
 
 skip_unmonitored: true

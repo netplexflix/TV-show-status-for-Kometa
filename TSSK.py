@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.10.04"
+VERSION = "2025.10.06"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -84,7 +84,7 @@ def convert_utc_to_local(utc_date_str, utc_offset):
     local_date = utc_date + timedelta(hours=utc_offset)
     return local_date
 
-def process_sonarr_url(base_url, api_key):
+def process_sonarr_url(base_url, api_key, timeout=90):
     base_url = base_url.rstrip('/')
     
     if base_url.startswith('http'):
@@ -102,7 +102,7 @@ def process_sonarr_url(base_url, api_key):
         test_url = f"{base_url}{path}"
         try:
             headers = {"X-Api-Key": api_key}
-            response = requests.get(f"{test_url}/health", headers=headers, timeout=90)
+            response = requests.get(f"{test_url}/health", headers=headers, timeout=timeout)
             if response.status_code == 200:
                 print(f"Successfully connected to Sonarr at: {test_url}")
                 return test_url
@@ -114,25 +114,26 @@ def process_sonarr_url(base_url, api_key):
                         "\n".join([f"- {base_url}{path}" for path in api_paths]) + 
                         f"\nPlease verify your URL and API key and ensure Sonarr is running.{RESET}")
 
-def get_sonarr_series_and_tags(sonarr_url, api_key):
+
+def get_sonarr_series_and_tags(sonarr_url, api_key, timeout=90):
     try:
         # Fetch series
         print(f"{BLUE}Fetching series from Sonarr...{RESET}", flush=True)
         series_url = f"{sonarr_url}/series"
         headers = {"X-Api-Key": api_key}
-        series_response = requests.get(series_url, headers=headers, timeout=90)
+        series_response = requests.get(series_url, headers=headers, timeout=timeout)
         series_response.raise_for_status()
         series_data = series_response.json()
         print(f"{GREEN}Done ✓ ({len(series_data)} series){RESET}")
-        
+
         # Fetch tags
         print(f"{BLUE}Fetching tags from Sonarr...{RESET}", flush=True)
         tags_url = f"{sonarr_url}/tag"
-        tags_response = requests.get(tags_url, headers=headers, timeout=90)
+        tags_response = requests.get(tags_url, headers=headers, timeout=timeout)
         tags_response.raise_for_status()
         tags_data = tags_response.json()
         print(f"{GREEN}Done ✓ ({len(tags_data)} tags){RESET}\n")
-        
+
         # Create tag mapping
         tag_mapping = {}
         for tag in tags_data:
@@ -145,11 +146,11 @@ def get_sonarr_series_and_tags(sonarr_url, api_key):
         print(f"{ORANGE}Continuing with empty series list...{RESET}")
         return [], {}
 
-def get_sonarr_episodes(sonarr_url, api_key, series_id):
+def get_sonarr_episodes(sonarr_url, api_key, series_id, timeout=90):
     try:
         url = f"{sonarr_url}/episode?seriesId={series_id}"
         headers = {"X-Api-Key": api_key}
-        response = requests.get(url, headers=headers, timeout=90)
+        response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -1601,9 +1602,10 @@ def main():
     
     try:
         # Process and validate Sonarr URL
-        sonarr_url = process_sonarr_url(config['sonarr_url'], config['sonarr_api_key'])
+        sonarr_timeout = int(config.get('sonarr_timeout', 90))
+        sonarr_url = process_sonarr_url(config['sonarr_url'], config['sonarr_api_key'], sonarr_timeout)
         sonarr_api_key = config['sonarr_api_key']
-                
+
         # Get ignore_finales_tags configuration
         ignore_finales_tags_config = config.get('ignore_finales_tags', '')
         ignore_finales_tags = []
@@ -1653,7 +1655,7 @@ def main():
         print(f"UTC offset: {utc_offset} hours\n")
 
         # Get series and tags from Sonarr in one call
-        all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, sonarr_api_key)
+        all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, sonarr_api_key, sonarr_timeout)
 
         # Track all tvdbIds to exclude from other categories
         all_excluded_tvdb_ids = set()
