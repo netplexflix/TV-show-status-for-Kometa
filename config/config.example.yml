@@ -1,7 +1,7 @@
 ################################################################################
 ##########                         GENERAL:                           ##########
 ################################################################################
-
+debug: false
 
 sonarr_url: 'http://localhost:8989'
 sonarr_api_key: 'YOUR_SONARR_API_KEY'
@@ -72,6 +72,7 @@ collection_new_season:
   item_label: New Season Soon
   non_item_remove_label: New Season Soon
   build_collection: false
+  sync_mode: append
 
 backdrop_new_season:
   enable: true
@@ -322,6 +323,7 @@ collection_ended:
   item_label: ended_shows
   non_item_remove_label: ended_shows
   build_collection: false
+  sync_mode: append
 
 backdrop_ended:
   enable: false
@@ -359,6 +361,7 @@ collection_canceled:
   item_label: canceled_shows
   non_item_remove_label: canceled_shows
   build_collection: false
+  sync_mode: append
 
 backdrop_canceled:
   enable: false

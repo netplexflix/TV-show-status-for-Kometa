@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.10.06"
+VERSION = "2025.10.08"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -83,6 +83,28 @@ def convert_utc_to_local(utc_date_str, utc_offset):
     # Apply the UTC offset
     local_date = utc_date + timedelta(hours=utc_offset)
     return local_date
+
+def debug_print(message, config):
+    """Print debug messages only if debug mode is enabled"""
+    if config.get('debug', False):
+        print(message)
+
+def ensure_output_directory():
+    """Ensure the output directory exists and is writable"""
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        # Test write permissions
+        test_file = os.path.join(output_dir, ".write_test")
+        with open(test_file, "w") as f:
+            f.write("test")
+        os.remove(test_file)
+        print(f"{GREEN}Output directory verified: {output_dir}{RESET}")
+        return output_dir
+    except Exception as e:
+        print(f"{RED}Error: Cannot write to output directory {output_dir}: {str(e)}{RESET}")
+        print(f"{RED}Please ensure the directory exists and has proper permissions.{RESET}")
+        sys.exit(1)
 
 def process_sonarr_url(base_url, api_key, timeout=90):
     base_url = base_url.rstrip('/')
@@ -802,800 +824,927 @@ def format_date(yyyy_mm_dd, date_format, capitalize=False):
         print(f"{RED}Error: Invalid date format '{date_format}'. Using default format.{RESET}")
         return yyyy_mm_dd  # Return original format as fallback
 
-def create_overlay_yaml(output_file, shows, config_sections):
+def create_collection_yaml(output_file, shows, config):
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-
-    if not shows:
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write("#No matching shows found")
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
         return
     
-    # Group shows by date if available
-    date_to_tvdb_ids = defaultdict(list)
-    all_tvdb_ids = set()
-    
-    # Check if this is a category that doesn't need dates
-    no_date_needed = "SEASON_FINALE" in output_file or "FINAL_EPISODE" in output_file or "NEW_SEASON_STARTED" in output_file
-    
-    for s in shows:
-        if s.get("tvdbId"):
-            all_tvdb_ids.add(s['tvdbId'])
-        
-        # Only add to date groups if the show has an air date and dates are needed
-        if s.get("airDate") and not no_date_needed:
-            date_to_tvdb_ids[s['airDate']].append(s.get('tvdbId'))
-    
-    overlays_dict = {}
-    
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    # Extract enable flag and default to True if not specified
-    enable_backdrop = backdrop_config.pop("enable", True)
+    output_file_path = os.path.join(output_dir, output_file)
 
-    # Only add backdrop overlay if enabled
-    if enable_backdrop and all_tvdb_ids:
-        backdrop_config["name"] = "backdrop"
-        all_tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
+    try:
+        # Add representer for OrderedDict
+        def represent_ordereddict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
         
-        overlays_dict["backdrop"] = {
-            "overlay": backdrop_config,
-            "tvdb_show": all_tvdb_ids_str
+        yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+
+        # Determine collection type and get the appropriate config section
+        collection_config = {}
+        collection_name = ""
+        default_summary = ""
+        
+        if "SEASON_FINALE" in output_file:
+            config_key = "collection_season_finale"
+            default_summary = f"Shows with a season finale that aired within the past {config.get('recent_days_season_finale', 21)} days"
+        elif "FINAL_EPISODE" in output_file:
+            config_key = "collection_final_episode"
+            default_summary = f"Shows with a final episode that aired within the past {config.get('recent_days_final_episode', 21)} days"
+        elif "NEW_SEASON_STARTED" in output_file:
+            config_key = "collection_new_season_started"
+            default_summary = f"Shows with a new season that started within the past {config.get('recent_days_new_season_started', 14)} days"
+        elif "NEW_SEASON" in output_file:
+            config_key = "collection_new_season"
+            default_summary = f"Shows with a new season starting within {config.get('future_days_new_season', 31)} days"
+        elif "UPCOMING_EPISODE" in output_file:
+            config_key = "collection_upcoming_episode"
+            default_summary = f"Shows with an upcoming episode within {config.get('future_days_upcoming_episode', 31)} days"
+        elif "UPCOMING_FINALE" in output_file:
+            config_key = "collection_upcoming_finale"
+            default_summary = f"Shows with a season finale within {config.get('future_days_upcoming_finale', 31)} days"
+        else:
+            # Default fallback
+            config_key = None
+            collection_name = "TV Collection"
+            default_summary = "TV Collection"
+        
+        # Get the collection configuration if available
+        if config_key and config_key in config:
+            # Create a deep copy to avoid modifying the original config
+            collection_config = deepcopy(config[config_key])
+            # Extract the collection name and remove it from the config
+            collection_name = collection_config.pop("collection_name", "TV Collection")
+        
+        # Extract user-provided summary and sort_title
+        user_summary = collection_config.pop("summary", None)
+        user_sort_title = collection_config.pop("sort_title", None)
+        
+        # Use user summary if provided, otherwise use default
+        summary = user_summary if user_summary else default_summary
+        
+        class QuotedString(str):
+            pass
+
+        def quoted_str_presenter(dumper, data):
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+        yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+
+        # Handle the case when no shows are found
+        if not shows:
+            # Create the template for empty collections
+            data = {
+                "collections": {
+                    collection_name: {
+                        "plex_search": {
+                            "all": {
+                                "label": collection_name
+                            }
+                        },
+                        "item_label.remove": collection_name,
+                        "smart_label": "random",
+                        "build_collection": False
+                    }
+                }
+            }
+            
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+            return
+        
+        tvdb_ids = [s['tvdbId'] for s in shows if s.get('tvdbId')]
+        if not tvdb_ids:
+            # Create the template for empty collections
+            data = {
+                "collections": {
+                    collection_name: {
+                        "plex_search": {
+                            "all": {
+                                "label": collection_name
+                            }
+                        },
+                        "non_item_remove_label": collection_name,
+                        "build_collection": False
+                    }
+                }
+            }
+            
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+            return
+
+        # Convert to comma-separated
+        tvdb_ids_str = ", ".join(str(i) for i in sorted(tvdb_ids))
+
+        # Create the collection data structure as a regular dict
+        collection_data = {}
+        collection_data["summary"] = summary
+        
+        # Add sort_title if user provided it
+        if user_sort_title:
+            collection_data["sort_title"] = QuotedString(user_sort_title)
+        
+        # Add all remaining parameters from the collection config
+        for key, value in collection_config.items():
+            collection_data[key] = value
+            
+        # Add tvdb_show as the last item
+        collection_data["tvdb_show"] = tvdb_ids_str
+
+        # Create the final structure with ordered keys
+        ordered_collection = OrderedDict()
+        
+        # Add summary first
+        ordered_collection["summary"] = collection_data["summary"]
+        
+        # Add sort_title second (if it exists)
+        if "sort_title" in collection_data:
+            ordered_collection["sort_title"] = collection_data["sort_title"]
+        
+        # Add all other keys except summary, sort_title, and tvdb_show
+        for key, value in collection_data.items():
+            if key not in ["summary", "sort_title", "tvdb_show"]:
+                ordered_collection[key] = value
+        
+        # Add tvdb_show at the end
+        ordered_collection["tvdb_show"] = collection_data["tvdb_show"]
+
+        data = {
+            "collections": {
+                collection_name: ordered_collection
+            }
         }
-    
-    # -- Text Blocks --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    if enable_text and all_tvdb_ids:
-        date_format = text_config.pop("date_format", "yyyy-mm-dd")
-        use_text = text_config.pop("use_text", "New Season")
-        capitalize_dates = text_config.pop("capitalize_dates", True)
+
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            # Use SafeDumper so our custom representer is used
+            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
         
-        # For categories that need dates and shows with air dates, create date-specific overlays
-        if date_to_tvdb_ids and not no_date_needed:
-            for date_str in sorted(date_to_tvdb_ids):
-                formatted_date = format_date(date_str, date_format, capitalize_dates)
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
+
+def create_overlay_yaml(output_file, shows, config_sections, config):
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
+    
+    output_file_path = os.path.join(output_dir, output_file)
+
+    try:
+        if not shows:
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                f.write("#No matching shows found")
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+            return
+        
+        # Group shows by date if available
+        date_to_tvdb_ids = defaultdict(list)
+        all_tvdb_ids = set()
+        
+        # Check if this is a category that doesn't need dates
+        no_date_needed = "SEASON_FINALE" in output_file or "FINAL_EPISODE" in output_file or "NEW_SEASON_STARTED" in output_file
+        
+        for s in shows:
+            if s.get("tvdbId"):
+                all_tvdb_ids.add(s['tvdbId'])
+            
+            # Only add to date groups if the show has an air date and dates are needed
+            if s.get("airDate") and not no_date_needed:
+                date_to_tvdb_ids[s['airDate']].append(s.get('tvdbId'))
+        
+        overlays_dict = {}
+        
+        # -- Backdrop Block --
+        backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+        # Extract enable flag and default to True if not specified
+        enable_backdrop = backdrop_config.pop("enable", True)
+
+        # Only add backdrop overlay if enabled
+        if enable_backdrop and all_tvdb_ids:
+            backdrop_config["name"] = "backdrop"
+            all_tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
+            
+            overlays_dict["backdrop"] = {
+                "overlay": backdrop_config,
+                "tvdb_show": all_tvdb_ids_str
+            }
+        
+        # -- Text Blocks --
+        text_config = deepcopy(config_sections.get("text", {}))
+        enable_text = text_config.pop("enable", True)
+        
+        if enable_text and all_tvdb_ids:
+            date_format = text_config.pop("date_format", "yyyy-mm-dd")
+            use_text = text_config.pop("use_text", "New Season")
+            capitalize_dates = text_config.pop("capitalize_dates", True)
+            
+            # For categories that need dates and shows with air dates, create date-specific overlays
+            if date_to_tvdb_ids and not no_date_needed:
+                for date_str in sorted(date_to_tvdb_ids):
+                    formatted_date = format_date(date_str, date_format, capitalize_dates)
+                    sub_overlay_config = deepcopy(text_config)
+                    sub_overlay_config["name"] = f"text({use_text} {formatted_date})"
+                    
+                    tvdb_ids_for_date = sorted(tvdb_id for tvdb_id in date_to_tvdb_ids[date_str] if tvdb_id)
+                    tvdb_ids_str = ", ".join(str(i) for i in tvdb_ids_for_date)
+                    
+                    block_key = f"TSSK_{formatted_date}"
+                    overlays_dict[block_key] = {
+                        "overlay": sub_overlay_config,
+                        "tvdb_show": tvdb_ids_str
+                    }
+            # For shows without air dates or categories that don't need dates, create a single overlay
+            else:
                 sub_overlay_config = deepcopy(text_config)
-                sub_overlay_config["name"] = f"text({use_text} {formatted_date})"
+                sub_overlay_config["name"] = f"text({use_text})"
                 
-                tvdb_ids_for_date = sorted(tvdb_id for tvdb_id in date_to_tvdb_ids[date_str] if tvdb_id)
-                tvdb_ids_str = ", ".join(str(i) for i in tvdb_ids_for_date)
+                tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
                 
-                block_key = f"TSSK_{formatted_date}"
+                # Extract category name from filename
+                if "NEW_SEASON_STARTED" in output_file:
+                    block_key = "TSSK_new_season_started"
+                elif "SEASON_FINALE" in output_file:
+                    block_key = "TSSK_season_finale"
+                elif "FINAL_EPISODE" in output_file:
+                    block_key = "TSSK_final_episode"
+                else:
+                    block_key = "TSSK_text"  # fallback
+                
                 overlays_dict[block_key] = {
                     "overlay": sub_overlay_config,
                     "tvdb_show": tvdb_ids_str
                 }
-        # For shows without air dates or categories that don't need dates, create a single overlay
-        else:
-            sub_overlay_config = deepcopy(text_config)
-            sub_overlay_config["name"] = f"text({use_text})"
-            
-            tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
-            
-            # Extract category name from filename
-            if "NEW_SEASON_STARTED" in output_file:
-                block_key = "TSSK_new_season_started"
-            elif "SEASON_FINALE" in output_file:
-                block_key = "TSSK_season_finale"
-            elif "FINAL_EPISODE" in output_file:
-                block_key = "TSSK_final_episode"
-            else:
-                block_key = "TSSK_text"  # fallback
-            
-            overlays_dict[block_key] = {
-                "overlay": sub_overlay_config,
-                "tvdb_show": tvdb_ids_str
-            }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
+        
+        final_output = {"overlays": overlays_dict}
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
 def create_new_show_collection_yaml(output_file, config, recent_days):
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-    # Add representer for OrderedDict
-    def represent_ordereddict(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+    output_file_path = os.path.join(output_dir, output_file)
 
-    class QuotedString(str):
-        pass
+    try:
+        # Add representer for OrderedDict
+        def represent_ordereddict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+        
+        yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
 
-    def quoted_str_presenter(dumper, data):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        class QuotedString(str):
+            pass
 
-    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+        def quoted_str_presenter(dumper, data):
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
-    # Get collection configuration
-    collection_config = deepcopy(config.get("collection_new_show", {}))
-    collection_name = collection_config.pop("collection_name", "New Shows")
-    summary = f"New Shows added in the past {recent_days} days"
+        yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
 
-    # Create the collection data structure as a regular dict
-    collection_data = {}
-    collection_data["summary"] = summary
-    
-    # Add all remaining parameters from the collection config
-    for key, value in collection_config.items():
-        # If it's a sort_title, make it a QuotedString
-        if key == "sort_title":
-            collection_data[key] = QuotedString(value)
-        else:
+        # Get collection configuration
+        collection_config = deepcopy(config.get("collection_new_show", {}))
+        collection_name = collection_config.pop("collection_name", "New Shows")
+        
+        # Extract user-provided summary and sort_title
+        user_summary = collection_config.pop("summary", None)
+        user_sort_title = collection_config.pop("sort_title", None)
+        
+        # Use user summary if provided, otherwise use default
+        summary = user_summary if user_summary else f"New Shows added in the past {recent_days} days"
+
+        # Create the collection data structure as a regular dict
+        collection_data = {}
+        collection_data["summary"] = summary
+        
+        # Add sort_title if user provided it
+        if user_sort_title:
+            collection_data["sort_title"] = QuotedString(user_sort_title)
+        
+        # Add all remaining parameters from the collection config
+        for key, value in collection_config.items():
             collection_data[key] = value
-    
-    # Add sync_mode after the config parameters
-    collection_data["sync_mode"] = "sync"
-    
-    # Add plex_all and filters instead of tvdb_show
-    collection_data["plex_all"] = True
-    collection_data["filters"] = {"added": recent_days}
+            
+        # Add plex_all and filters instead of tvdb_show
+        collection_data["plex_all"] = True
+        collection_data["filters"] = {"added": recent_days}
 
-    # Create the final structure with ordered keys
-    ordered_collection = OrderedDict()
-    
-    # Add keys in the desired order
-    ordered_collection["summary"] = collection_data["summary"]
-    if "sort_title" in collection_data:
-        ordered_collection["sort_title"] = collection_data["sort_title"]
-    
-    # Add all other keys except sync_mode, plex_all, and filters
-    for key, value in collection_data.items():
-        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
-            ordered_collection[key] = value
-    
-    # Add sync_mode, plex_all, and filters at the end
-    ordered_collection["sync_mode"] = collection_data["sync_mode"]
-    ordered_collection["plex_all"] = collection_data["plex_all"]
-    ordered_collection["filters"] = collection_data["filters"]
+        # Create the final structure with ordered keys
+        ordered_collection = OrderedDict()
+        
+        # Add summary first
+        ordered_collection["summary"] = collection_data["summary"]
+        
+        # Add sort_title second (if it exists)
+        if "sort_title" in collection_data:
+            ordered_collection["sort_title"] = collection_data["sort_title"]
+        
+        # Add all other keys except summary, sort_title, plex_all, and filters
+        for key, value in collection_data.items():
+            if key not in ["summary", "sort_title", "plex_all", "filters"]:
+                ordered_collection[key] = value
+        
+        # Add plex_all and filters at the end
+        ordered_collection["plex_all"] = collection_data["plex_all"]
+        ordered_collection["filters"] = collection_data["filters"]
 
-    data = {
-        "collections": {
-            collection_name: ordered_collection
+        data = {
+            "collections": {
+                collection_name: ordered_collection
+            }
         }
-    }
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        # Use SafeDumper so our custom representer is used
-        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            # Use SafeDumper so our custom representer is used
+            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
-def create_new_show_overlay_yaml(output_file, config_sections, recent_days):
+def create_new_show_overlay_yaml(output_file, config_sections, recent_days, config):
     """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    overlays_dict = {}
+    output_file_path = os.path.join(output_dir, output_file)
     
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    enable_backdrop = backdrop_config.pop("enable", True)
-    
-    if enable_backdrop:
-        backdrop_config["name"] = "backdrop"
-        overlays_dict["backdrop"] = {
-            "plex_all": True,
-            "filters": {
-                "added": recent_days
-            },
-            "overlay": backdrop_config
-        }
-    
-    # -- Text Block --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    if enable_text:
-        use_text = text_config.pop("use_text", "New Show")
-        text_config.pop("date_format", None)  # Remove if present
-        text_config.pop("capitalize_dates", None)  # Remove if present
+    try:
+        overlays_dict = {}
         
-        text_config["name"] = f"text({use_text})"
+        # -- Backdrop Block --
+        backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+        enable_backdrop = backdrop_config.pop("enable", True)
         
-        overlays_dict["new_show"] = {
-            "plex_all": True,
-            "filters": {
-                "added": recent_days
-            },
-            "overlay": text_config
-        }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
+        if enable_backdrop:
+            backdrop_config["name"] = "backdrop"
+            overlays_dict["backdrop"] = {
+                "plex_all": True,
+                "filters": {
+                    "added": recent_days
+                },
+                "overlay": backdrop_config
+            }
+        
+        # -- Text Block --
+        text_config = deepcopy(config_sections.get("text", {}))
+        enable_text = text_config.pop("enable", True)
+        
+        if enable_text:
+            use_text = text_config.pop("use_text", "New Show")
+            text_config.pop("date_format", None)  # Remove if present
+            text_config.pop("capitalize_dates", None)  # Remove if present
+            
+            text_config["name"] = f"text({use_text})"
+            
+            overlays_dict["new_show"] = {
+                "plex_all": True,
+                "filters": {
+                    "added": recent_days
+                },
+                "overlay": text_config
+            }
+        
+        final_output = {"overlays": overlays_dict}
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
 def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for returning shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-    # Add representer for OrderedDict
-    def represent_ordereddict(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+    output_file_path = os.path.join(output_dir, output_file)
 
-    class QuotedString(str):
-        pass
+    try:
+        # Add representer for OrderedDict
+        def represent_ordereddict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+        
+        yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
 
-    def quoted_str_presenter(dumper, data):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        class QuotedString(str):
+            pass
 
-    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+        def quoted_str_presenter(dumper, data):
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
-    # Get collection configuration
-    collection_config = deepcopy(config.get("collection_returning", {}))
-    collection_name = collection_config.pop("collection_name", "Returning Shows")
-    summary = "Returning Shows without upcoming episodes within the chosen timeframes"
-    
-    # Extract additional filters from config
-    additional_filters = collection_config.pop("filters", {})
+        yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
 
-    # Create the collection data structure as a regular dict
-    collection_data = {}
-    collection_data["summary"] = summary
-    
-    # Add all remaining parameters from the collection config
-    for key, value in collection_config.items():
-        # If it's a sort_title, make it a QuotedString
-        if key == "sort_title":
-            collection_data[key] = QuotedString(value)
-        else:
+        # Get collection configuration
+        collection_config = deepcopy(config.get("collection_returning", {}))
+        collection_name = collection_config.pop("collection_name", "Returning Shows")
+        
+        # Extract user-provided summary and sort_title
+        user_summary = collection_config.pop("summary", None)
+        user_sort_title = collection_config.pop("sort_title", None)
+        
+        # Use user summary if provided, otherwise use default
+        summary = user_summary if user_summary else "Returning Shows without upcoming episodes within the chosen timeframes"
+        
+        # Extract additional filters from config
+        additional_filters = collection_config.pop("filters", {})
+
+        # Create the collection data structure as a regular dict
+        collection_data = {}
+        collection_data["summary"] = summary
+        
+        # Add sort_title if user provided it
+        if user_sort_title:
+            collection_data["sort_title"] = QuotedString(user_sort_title)
+        
+        # Add all remaining parameters from the collection config
+        for key, value in collection_config.items():
             collection_data[key] = value
-    
-    # Add sync_mode after the config parameters
-    collection_data["sync_mode"] = "sync"
-    
-    # Add plex_all and filters instead of tvdb_show
-    collection_data["plex_all"] = True
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    status_value = "continuing" if use_tvdb else "returning"
-    
-    # Create filters dict with status filter first, then additional filters
-    filters_dict = {status_filter: status_value}
-    filters_dict.update(additional_filters)
-    collection_data["filters"] = filters_dict
+            
+        # Add plex_all and filters instead of tvdb_show
+        collection_data["plex_all"] = True
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+        status_value = "continuing" if use_tvdb else "returning"
+        
+        # Create filters dict with status filter first, then additional filters
+        filters_dict = {status_filter: status_value}
+        filters_dict.update(additional_filters)
+        collection_data["filters"] = filters_dict
 
-    # Create the final structure with ordered keys
-    ordered_collection = OrderedDict()
-    
-    # Add keys in the desired order
-    ordered_collection["summary"] = collection_data["summary"]
-    if "sort_title" in collection_data:
-        ordered_collection["sort_title"] = collection_data["sort_title"]
-    
-    # Add all other keys except sync_mode, plex_all, and filters
-    for key, value in collection_data.items():
-        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
-            ordered_collection[key] = value
-    
-    # Add sync_mode, plex_all, and filters at the end
-    ordered_collection["sync_mode"] = collection_data["sync_mode"]
-    ordered_collection["plex_all"] = collection_data["plex_all"]
-    ordered_collection["filters"] = collection_data["filters"]
+        # Create the final structure with ordered keys
+        ordered_collection = OrderedDict()
+        
+        # Add summary first
+        ordered_collection["summary"] = collection_data["summary"]
+        
+        # Add sort_title second (if it exists)
+        if "sort_title" in collection_data:
+            ordered_collection["sort_title"] = collection_data["sort_title"]
+        
+        # Add all other keys except summary, sort_title, plex_all, and filters
+        for key, value in collection_data.items():
+            if key not in ["summary", "sort_title", "plex_all", "filters"]:
+                ordered_collection[key] = value
+        
+        # Add plex_all and filters at the end
+        ordered_collection["plex_all"] = collection_data["plex_all"]
+        ordered_collection["filters"] = collection_data["filters"]
 
-    data = {
-        "collections": {
-            collection_name: ordered_collection
+        data = {
+            "collections": {
+                collection_name: ordered_collection
+            }
         }
-    }
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        # Use SafeDumper so our custom representer is used
-        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            # Use SafeDumper so our custom representer is used
+            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
-
-def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
+def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None):
     """Create overlay YAML for returning shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    overlays_dict = {}
+    output_file_path = os.path.join(output_dir, output_file)
     
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    enable_backdrop = backdrop_config.pop("enable", True)
-    
-    # Extract additional filters from backdrop config
-    backdrop_additional_filters = backdrop_config.pop("filters", {})
-    
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    status_value = "continuing" if use_tvdb else "returning"
-    
-    if enable_backdrop:
-        backdrop_config["name"] = "backdrop"
+    try:
+        overlays_dict = {}
         
-        # Create filters dict with status filter first, then additional filters
-        backdrop_filters = {status_filter: status_value}
-        backdrop_filters.update(backdrop_additional_filters)
+        # -- Backdrop Block --
+        backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+        enable_backdrop = backdrop_config.pop("enable", True)
         
-        overlays_dict["backdrop"] = {
-            "plex_all": True,
-            "filters": backdrop_filters,
-            "overlay": backdrop_config
-        }
-    
-    # -- Text Block --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    # Extract additional filters from text config
-    text_additional_filters = text_config.pop("filters", {})
-    
-    if enable_text:
-        use_text = text_config.pop("use_text", "Returning")
-        text_config.pop("date_format", None)  # Remove if present
-        text_config.pop("capitalize_dates", None)  # Remove if present
+        # Extract additional filters from backdrop config
+        backdrop_additional_filters = backdrop_config.pop("filters", {})
         
-        text_config["name"] = f"text({use_text})"
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+        status_value = "continuing" if use_tvdb else "returning"
         
-        # Create filters dict with status filter first, then additional filters
-        text_filters = {status_filter: status_value}
-        text_filters.update(text_additional_filters)
+        if enable_backdrop:
+            backdrop_config["name"] = "backdrop"
+            
+            # Create filters dict with status filter first, then additional filters
+            backdrop_filters = {status_filter: status_value}
+            backdrop_filters.update(backdrop_additional_filters)
+            
+            overlays_dict["backdrop"] = {
+                "plex_all": True,
+                "filters": backdrop_filters,
+                "overlay": backdrop_config
+            }
         
-        overlays_dict["returning_show"] = {
-            "plex_all": True,
-            "filters": text_filters,
-            "overlay": text_config
-        }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
-
+        # -- Text Block --
+        text_config = deepcopy(config_sections.get("text", {}))
+        enable_text = text_config.pop("enable", True)
+        
+        # Extract additional filters from text config
+        text_additional_filters = text_config.pop("filters", {})
+        
+        if enable_text:
+            use_text = text_config.pop("use_text", "Returning")
+            text_config.pop("date_format", None)  # Remove if present
+            text_config.pop("capitalize_dates", None)  # Remove if present
+            
+            text_config["name"] = f"text({use_text})"
+            
+            # Create filters dict with status filter first, then additional filters
+            text_filters = {status_filter: status_value}
+            text_filters.update(text_additional_filters)
+            
+            overlays_dict["returning_show"] = {
+                "plex_all": True,
+                "filters": text_filters,
+                "overlay": text_config
+            }
+        
+        final_output = {"overlays": overlays_dict}
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, sort_keys=False)
+        if config:
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
 def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for ended shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-    # Add representer for OrderedDict
-    def represent_ordereddict(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+    output_file_path = os.path.join(output_dir, output_file)
 
-    class QuotedString(str):
-        pass
+    try:
+        # Add representer for OrderedDict
+        def represent_ordereddict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+        
+        yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
 
-    def quoted_str_presenter(dumper, data):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        class QuotedString(str):
+            pass
 
-    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+        def quoted_str_presenter(dumper, data):
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
-    # Get collection configuration
-    collection_config = deepcopy(config.get("collection_ended", {}))
-    collection_name = collection_config.pop("collection_name", "Ended Shows")
-    summary = "Shows that have ended"
-    
-    # Extract additional filters from config
-    additional_filters = collection_config.pop("filters", {})
+        yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
 
-    # Create the collection data structure as a regular dict
-    collection_data = {}
-    collection_data["summary"] = summary
-    
-    # Add all remaining parameters from the collection config
-    for key, value in collection_config.items():
-        # If it's a sort_title, make it a QuotedString
-        if key == "sort_title":
-            collection_data[key] = QuotedString(value)
-        else:
+        # Get collection configuration
+        collection_config = deepcopy(config.get("collection_ended", {}))
+        collection_name = collection_config.pop("collection_name", "Ended Shows")
+        
+        # Extract user-provided summary and sort_title
+        user_summary = collection_config.pop("summary", None)
+        user_sort_title = collection_config.pop("sort_title", None)
+        
+        # Use user summary if provided, otherwise use default
+        summary = user_summary if user_summary else "Shows that have ended"
+        
+        # Extract additional filters from config
+        additional_filters = collection_config.pop("filters", {})
+
+        # Create the collection data structure as a regular dict
+        collection_data = {}
+        collection_data["summary"] = summary
+        
+        # Add sort_title if user provided it
+        if user_sort_title:
+            collection_data["sort_title"] = QuotedString(user_sort_title)
+        
+        # Add all remaining parameters from the collection config
+        for key, value in collection_config.items():
             collection_data[key] = value
-    
-    # Add sync_mode after the config parameters
-    collection_data["sync_mode"] = "sync"
-    
-    # Add plex_all and filters instead of tvdb_show
-    collection_data["plex_all"] = True
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    
-    # Create filters dict with status filter first, then additional filters
-    filters_dict = {status_filter: "ended"}
-    filters_dict.update(additional_filters)
-    collection_data["filters"] = filters_dict
+            
+        # Add plex_all and filters instead of tvdb_show
+        collection_data["plex_all"] = True
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+        
+        # Create filters dict with status filter first, then additional filters
+        filters_dict = {status_filter: "ended"}
+        filters_dict.update(additional_filters)
+        collection_data["filters"] = filters_dict
 
-    # Create the final structure with ordered keys
-    ordered_collection = OrderedDict()
-    
-    # Add keys in the desired order
-    ordered_collection["summary"] = collection_data["summary"]
-    if "sort_title" in collection_data:
-        ordered_collection["sort_title"] = collection_data["sort_title"]
-    
-    # Add all other keys except sync_mode, plex_all, and filters
-    for key, value in collection_data.items():
-        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
-            ordered_collection[key] = value
-    
-    # Add sync_mode, plex_all, and filters at the end
-    ordered_collection["sync_mode"] = collection_data["sync_mode"]
-    ordered_collection["plex_all"] = collection_data["plex_all"]
-    ordered_collection["filters"] = collection_data["filters"]
+        # Create the final structure with ordered keys
+        ordered_collection = OrderedDict()
+        
+        # Add summary first
+        ordered_collection["summary"] = collection_data["summary"]
+        
+        # Add sort_title second (if it exists)
+        if "sort_title" in collection_data:
+            ordered_collection["sort_title"] = collection_data["sort_title"]
+        
+        # Add all other keys except summary, sort_title, plex_all, and filters
+        for key, value in collection_data.items():
+            if key not in ["summary", "sort_title", "plex_all", "filters"]:
+                ordered_collection[key] = value
+        
+        # Add plex_all and filters at the end
+        ordered_collection["plex_all"] = collection_data["plex_all"]
+        ordered_collection["filters"] = collection_data["filters"]
 
-    data = {
-        "collections": {
-            collection_name: ordered_collection
+        data = {
+            "collections": {
+                collection_name: ordered_collection
+            }
         }
-    }
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        # Use SafeDumper so our custom representer is used
-        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            # Use SafeDumper so our custom representer is used
+            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
-
-def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
+def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None):
     """Create overlay YAML for ended shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    overlays_dict = {}
+    output_file_path = os.path.join(output_dir, output_file)
     
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    enable_backdrop = backdrop_config.pop("enable", True)
-    
-    # Extract additional filters from backdrop config
-    backdrop_additional_filters = backdrop_config.pop("filters", {})
-    
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    
-    if enable_backdrop:
-        backdrop_config["name"] = "backdrop"
+    try:
+        overlays_dict = {}
         
-        # Create filters dict with status filter first, then additional filters
-        backdrop_filters = {status_filter: "ended"}
-        backdrop_filters.update(backdrop_additional_filters)
+        # -- Backdrop Block --
+        backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+        enable_backdrop = backdrop_config.pop("enable", True)
         
-        overlays_dict["backdrop"] = {
-            "plex_all": True,
-            "filters": backdrop_filters,
-            "overlay": backdrop_config
-        }
-    
-    # -- Text Block --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    # Extract additional filters from text config
-    text_additional_filters = text_config.pop("filters", {})
-    
-    if enable_text:
-        use_text = text_config.pop("use_text", "Ended")
-        text_config.pop("date_format", None)  # Remove if present
-        text_config.pop("capitalize_dates", None)  # Remove if present
+        # Extract additional filters from backdrop config
+        backdrop_additional_filters = backdrop_config.pop("filters", {})
         
-        text_config["name"] = f"text({use_text})"
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
         
-        # Create filters dict with status filter first, then additional filters
-        text_filters = {status_filter: "ended"}
-        text_filters.update(text_additional_filters)
+        if enable_backdrop:
+            backdrop_config["name"] = "backdrop"
+            
+            # Create filters dict with status filter first, then additional filters
+            backdrop_filters = {status_filter: "ended"}
+            backdrop_filters.update(backdrop_additional_filters)
+            
+            overlays_dict["backdrop"] = {
+                "plex_all": True,
+                "filters": backdrop_filters,
+                "overlay": backdrop_config
+            }
         
-        overlays_dict["ended_show"] = {
-            "plex_all": True,
-            "filters": text_filters,
-            "overlay": text_config
-        }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
-
+        # -- Text Block --
+        text_config = deepcopy(config_sections.get("text", {}))
+        enable_text = text_config.pop("enable", True)
+        
+        # Extract additional filters from text config
+        text_additional_filters = text_config.pop("filters", {})
+        
+        if enable_text:
+            use_text = text_config.pop("use_text", "Ended")
+            text_config.pop("date_format", None)  # Remove if present
+            text_config.pop("capitalize_dates", None)  # Remove if present
+            
+            text_config["name"] = f"text({use_text})"
+            
+            # Create filters dict with status filter first, then additional filters
+            text_filters = {status_filter: "ended"}
+            text_filters.update(text_additional_filters)
+            
+            overlays_dict["ended_show"] = {
+                "plex_all": True,
+                "filters": text_filters,
+                "overlay": text_config
+            }
+        
+        final_output = {"overlays": overlays_dict}
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, sort_keys=False)
+        if config:
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
 def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for canceled shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-    # Add representer for OrderedDict
-    def represent_ordereddict(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
     
-    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
+    output_file_path = os.path.join(output_dir, output_file)
 
-    class QuotedString(str):
-        pass
+    try:
+        # Add representer for OrderedDict
+        def represent_ordereddict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
+        
+        yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
 
-    def quoted_str_presenter(dumper, data):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+        class QuotedString(str):
+            pass
 
-    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
+        def quoted_str_presenter(dumper, data):
+            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
-    # Get collection configuration
-    collection_config = deepcopy(config.get("collection_canceled", {}))
-    collection_name = collection_config.pop("collection_name", "Canceled Shows")
-    summary = "Shows that have been canceled"
-    
-    # Extract additional filters from config
-    additional_filters = collection_config.pop("filters", {})
+        yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
 
-    # Create the collection data structure as a regular dict
-    collection_data = {}
-    collection_data["summary"] = summary
-    
-    # Add all remaining parameters from the collection config
-    for key, value in collection_config.items():
-        # If it's a sort_title, make it a QuotedString
-        if key == "sort_title":
-            collection_data[key] = QuotedString(value)
-        else:
+        # Get collection configuration
+        collection_config = deepcopy(config.get("collection_canceled", {}))
+        collection_name = collection_config.pop("collection_name", "Canceled Shows")
+        
+        # Extract user-provided summary and sort_title
+        user_summary = collection_config.pop("summary", None)
+        user_sort_title = collection_config.pop("sort_title", None)
+        
+        # Use user summary if provided, otherwise use default
+        summary = user_summary if user_summary else "Shows that have been canceled"
+        
+        # Extract additional filters from config
+        additional_filters = collection_config.pop("filters", {})
+
+        # Create the collection data structure as a regular dict
+        collection_data = {}
+        collection_data["summary"] = summary
+        
+        # Add sort_title if user provided it
+        if user_sort_title:
+            collection_data["sort_title"] = QuotedString(user_sort_title)
+        
+        # Add all remaining parameters from the collection config
+        for key, value in collection_config.items():
             collection_data[key] = value
-    
-    # Add sync_mode after the config parameters
-    collection_data["sync_mode"] = "sync"
-    
-    # Add plex_all and filters instead of tvdb_show
-    collection_data["plex_all"] = True
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    
-    # Create filters dict with status filter first, then additional filters
-    filters_dict = {status_filter: "canceled"}
-    filters_dict.update(additional_filters)
-    collection_data["filters"] = filters_dict
+           
+        # Add plex_all and filters instead of tvdb_show
+        collection_data["plex_all"] = True
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+        
+        # Create filters dict with status filter first, then additional filters
+        filters_dict = {status_filter: "canceled"}
+        filters_dict.update(additional_filters)
+        collection_data["filters"] = filters_dict
 
-    # Create the final structure with ordered keys
-    ordered_collection = OrderedDict()
-    
-    # Add keys in the desired order
-    ordered_collection["summary"] = collection_data["summary"]
-    if "sort_title" in collection_data:
-        ordered_collection["sort_title"] = collection_data["sort_title"]
-    
-    # Add all other keys except sync_mode, plex_all, and filters
-    for key, value in collection_data.items():
-        if key not in ["summary", "sort_title", "sync_mode", "plex_all", "filters"]:
-            ordered_collection[key] = value
-    
-    # Add sync_mode, plex_all, and filters at the end
-    ordered_collection["sync_mode"] = collection_data["sync_mode"]
-    ordered_collection["plex_all"] = collection_data["plex_all"]
-    ordered_collection["filters"] = collection_data["filters"]
+        # Create the final structure with ordered keys
+        ordered_collection = OrderedDict()
+        
+        # Add summary first
+        ordered_collection["summary"] = collection_data["summary"]
+        
+        # Add sort_title second (if it exists)
+        if "sort_title" in collection_data:
+            ordered_collection["sort_title"] = collection_data["sort_title"]
+        
+        # Add all other keys except summary, sort_title, plex_all, and filters
+        for key, value in collection_data.items():
+            if key not in ["summary", "sort_title", "plex_all", "filters"]:
+                ordered_collection[key] = value
+        
+        # Add plex_all and filters at the end
+        ordered_collection["plex_all"] = collection_data["plex_all"]
+        ordered_collection["filters"] = collection_data["filters"]
 
-    data = {
-        "collections": {
-            collection_name: ordered_collection
+        data = {
+            "collections": {
+                collection_name: ordered_collection
+            }
         }
-    }
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        # Use SafeDumper so our custom representer is used
-        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            # Use SafeDumper so our custom representer is used
+            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
-
-def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=False):
+def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None):
     """Create overlay YAML for canceled shows using Plex filters"""  
     # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-    
-    overlays_dict = {}
-    
-    # -- Backdrop Block --
-    backdrop_config = deepcopy(config_sections.get("backdrop", {}))
-    enable_backdrop = backdrop_config.pop("enable", True)
-    
-    # Extract additional filters from backdrop config
-    backdrop_additional_filters = backdrop_config.pop("filters", {})
-    
-    status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
-    
-    if enable_backdrop:
-        backdrop_config["name"] = "backdrop"
-        
-        # Create filters dict with status filter first, then additional filters
-        backdrop_filters = {status_filter: "canceled"}
-        backdrop_filters.update(backdrop_additional_filters)
-        
-        overlays_dict["backdrop"] = {
-            "plex_all": True,
-            "filters": backdrop_filters,
-            "overlay": backdrop_config
-        }
-    
-    # -- Text Block --
-    text_config = deepcopy(config_sections.get("text", {}))
-    enable_text = text_config.pop("enable", True)
-    
-    # Extract additional filters from text config
-    text_additional_filters = text_config.pop("filters", {})
-    
-    if enable_text:
-        use_text = text_config.pop("use_text", "Canceled")
-        text_config.pop("date_format", None)  # Remove if present
-        text_config.pop("capitalize_dates", None)  # Remove if present
-        
-        text_config["name"] = f"text({use_text})"
-        
-        # Create filters dict with status filter first, then additional filters
-        text_filters = {status_filter: "canceled"}
-        text_filters.update(text_additional_filters)
-        
-        overlays_dict["canceled_show"] = {
-            "plex_all": True,
-            "filters": text_filters,
-            "overlay": text_config
-        }
-    
-    final_output = {"overlays": overlays_dict}
-    
-    with open(output_file, "w", encoding="utf-8") as f:
-        yaml.dump(final_output, f, sort_keys=False)
-
-def create_collection_yaml(output_file, shows, config):
-    # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, output_file)
-
-    # Add representer for OrderedDict
-    def represent_ordereddict(dumper, data):
-        return dumper.represent_mapping('tag:yaml.org,2002:map', data.items())
-    
-    yaml.add_representer(OrderedDict, represent_ordereddict, Dumper=yaml.SafeDumper)
-
-    # Determine collection type and get the appropriate config section
-    collection_config = {}
-    collection_name = ""
-    
-    if "SEASON_FINALE" in output_file:
-        config_key = "collection_season_finale"
-        summary = f"Shows with a season finale that aired within the past {config.get('recent_days_season_finale', 21)} days"
-    elif "FINAL_EPISODE" in output_file:
-        config_key = "collection_final_episode"
-        summary = f"Shows with a final episode that aired within the past {config.get('recent_days_final_episode', 21)} days"
-    elif "NEW_SEASON_STARTED" in output_file:
-        config_key = "collection_new_season_started"
-        summary = f"Shows with a new season that started within the past {config.get('recent_days_new_season_started', 14)} days"
-    elif "NEW_SEASON" in output_file:
-        config_key = "collection_new_season"
-        summary = f"Shows with a new season starting within {config.get('future_days_new_season', 31)} days"
-    elif "UPCOMING_EPISODE" in output_file:
-        config_key = "collection_upcoming_episode"
-        summary = f"Shows with an upcoming episode within {config.get('future_days_upcoming_episode', 31)} days"
-    elif "UPCOMING_FINALE" in output_file:
-        config_key = "collection_upcoming_finale"
-        summary = f"Shows with a season finale within {config.get('future_days_upcoming_finale', 31)} days"
-    else:
-        # Default fallback
-        config_key = None
-        collection_name = "TV Collection"
-        summary = "TV Collection"
-    
-    # Get the collection configuration if available
-    if config_key and config_key in config:
-        # Create a deep copy to avoid modifying the original config
-        collection_config = deepcopy(config[config_key])
-        # Extract the collection name and remove it from the config
-        collection_name = collection_config.pop("collection_name", "TV Collection")
-    
-    class QuotedString(str):
-        pass
-
-    def quoted_str_presenter(dumper, data):
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
-
-    yaml.add_representer(QuotedString, quoted_str_presenter, Dumper=yaml.SafeDumper)
-
-    # Handle the case when no shows are found
-    if not shows:
-        # Create the template for empty collections
-        data = {
-            "collections": {
-                collection_name: {
-                    "plex_search": {
-                        "all": {
-                            "label": collection_name
-                        }
-                    },
-                    "item_label.remove": collection_name,
-					"smart_label": "random",
-					"build_collection": False
-                }
-            }
-        }
-        
-        with open(output_file, "w", encoding="utf-8") as f:
-            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
         return
     
-    tvdb_ids = [s['tvdbId'] for s in shows if s.get('tvdbId')]
-    if not tvdb_ids:
-        # Create the template for empty collections
-        data = {
-            "collections": {
-                collection_name: {
-                    "plex_search": {
-                        "all": {
-                            "label": collection_name
-                        }
-                    },
-                    "non_item_remove_label": collection_name,
-                    "build_collection": False
-                }
-            }
-        }
+    output_file_path = os.path.join(output_dir, output_file)
+    
+    try:
+        overlays_dict = {}
         
-        with open(output_file, "w", encoding="utf-8") as f:
-            yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
-        return
-
-    # Convert to comma-separated
-    tvdb_ids_str = ", ".join(str(i) for i in sorted(tvdb_ids))
-
-    # Create the collection data structure as a regular dict
-    collection_data = {}
-    collection_data["summary"] = summary
-    
-    # Add all remaining parameters from the collection config
-    for key, value in collection_config.items():
-        # If it's a sort_title, make it a QuotedString
-        if key == "sort_title":
-            collection_data[key] = QuotedString(value)
-        else:
-            collection_data[key] = value
-    
-    # Add sync_mode after the config parameters
-    collection_data["sync_mode"] = "sync"
-    
-    # Add tvdb_show as the last item
-    collection_data["tvdb_show"] = tvdb_ids_str
-
-    # Create the final structure with ordered keys
-    ordered_collection = OrderedDict()
-    
-    # Add keys in the desired order
-    ordered_collection["summary"] = collection_data["summary"]
-    if "sort_title" in collection_data:
-        ordered_collection["sort_title"] = collection_data["sort_title"]
-    
-    # Add all other keys except sync_mode and tvdb_show
-    for key, value in collection_data.items():
-        if key not in ["summary", "sort_title", "sync_mode", "tvdb_show"]:
-            ordered_collection[key] = value
-    
-    # Add sync_mode and tvdb_show at the end
-    ordered_collection["sync_mode"] = collection_data["sync_mode"]
-    ordered_collection["tvdb_show"] = collection_data["tvdb_show"]
-
-    data = {
-        "collections": {
-            collection_name: ordered_collection
-        }
-    }
-
-    with open(output_file, "w", encoding="utf-8") as f:
-        # Use SafeDumper so our custom representer is used
-        yaml.dump(data, f, Dumper=yaml.SafeDumper, sort_keys=False)
-
+        # -- Backdrop Block --
+        backdrop_config = deepcopy(config_sections.get("backdrop", {}))
+        enable_backdrop = backdrop_config.pop("enable", True)
+        
+        # Extract additional filters from backdrop config
+        backdrop_additional_filters = backdrop_config.pop("filters", {})
+        
+        status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
+        
+        if enable_backdrop:
+            backdrop_config["name"] = "backdrop"
+            
+            # Create filters dict with status filter first, then additional filters
+            backdrop_filters = {status_filter: "canceled"}
+            backdrop_filters.update(backdrop_additional_filters)
+            
+            overlays_dict["backdrop"] = {
+                "plex_all": True,
+                "filters": backdrop_filters,
+                "overlay": backdrop_config
+            }
+        
+        # -- Text Block --
+        text_config = deepcopy(config_sections.get("text", {}))
+        enable_text = text_config.pop("enable", True)
+        
+        # Extract additional filters from text config
+        text_additional_filters = text_config.pop("filters", {})
+        
+        if enable_text:
+            use_text = text_config.pop("use_text", "Canceled")
+            text_config.pop("date_format", None)  # Remove if present
+            text_config.pop("capitalize_dates", None)  # Remove if present
+            
+            text_config["name"] = f"text({use_text})"
+            
+            # Create filters dict with status filter first, then additional filters
+            text_filters = {status_filter: "canceled"}
+            text_filters.update(text_additional_filters)
+            
+            overlays_dict["canceled_show"] = {
+                "plex_all": True,
+                "filters": text_filters,
+                "overlay": text_config
+            }
+        
+        final_output = {"overlays": overlays_dict}
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, sort_keys=False)
+        if config:
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
 def main():
     start_time = datetime.now()
     print(f"{BLUE}{'*' * 40}\n{'*' * 11} TSSK {VERSION} {'*' * 12}\n{'*' * 40}{RESET}")
+    
+    # Verify output directory before doing anything else
+    output_dir = ensure_output_directory()
+    print(f"Docker mode: {IS_DOCKER}")
+    print(f"Output directory: {output_dir}\n")
+    
     check_for_updates()
 
     config = load_config('config/config.yml')
@@ -1665,7 +1814,7 @@ def main():
             create_new_show_overlay_yaml("TSSK_TV_NEW_SHOW_OVERLAYS.yml", 
                                        {"backdrop": get_config_section(config, "backdrop_new_show"),
                                         "text": get_config_section(config, "text_new_show")}, 
-                                       recent_days_new_show)
+                                       recent_days_new_show, config)
 
             create_new_show_collection_yaml("TSSK_TV_NEW_SHOW_COLLECTION.yml", config, recent_days_new_show)
             print(f"\n'New shows' overlay and collection .ymls created for shows added within the past {GREEN}{recent_days_new_show}{RESET} days")
@@ -1686,7 +1835,7 @@ def main():
             # Create YAMLs for new seasons
             create_overlay_yaml("TSSK_TV_NEW_SEASON_OVERLAYS.yml", matched_shows, 
                                {"backdrop": config.get("backdrop_new_season", config.get("backdrop", {})),
-                                "text": config.get("text_new_season", config.get("text", {}))})
+                                "text": config.get("text_new_season", config.get("text", {}))}, config)
             
             create_collection_yaml("TSSK_TV_NEW_SEASON_COLLECTION.yml", matched_shows, config)
 
@@ -1708,7 +1857,7 @@ def main():
             
             create_overlay_yaml("TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml", new_season_started_shows, 
                                {"backdrop": config.get("backdrop_new_season_started", {}),
-                                "text": config.get("text_new_season_started", {})})
+                                "text": config.get("text_new_season_started", {})}, config)
             
             create_collection_yaml("TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml", new_season_started_shows, config)
 
@@ -1728,7 +1877,7 @@ def main():
             
             create_overlay_yaml("TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml", upcoming_eps, 
                                {"backdrop": config.get("backdrop_upcoming_episode", {}),
-                                "text": config.get("text_upcoming_episode", {})})
+                                "text": config.get("text_upcoming_episode", {})}, config)
             
             create_collection_yaml("TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml", upcoming_eps, config)
 
@@ -1745,7 +1894,7 @@ def main():
             
             create_overlay_yaml("TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml", finale_eps, 
                                {"backdrop": config.get("backdrop_upcoming_finale", {}),
-                                "text": config.get("text_upcoming_finale", {})})
+                                "text": config.get("text_upcoming_finale", {})}, config)
             
             create_collection_yaml("TSSK_TV_UPCOMING_FINALE_COLLECTION.yml", finale_eps, config)
         
@@ -1767,7 +1916,7 @@ def main():
             
             create_overlay_yaml("TSSK_TV_SEASON_FINALE_OVERLAYS.yml", season_finale_shows, 
                                {"backdrop": config.get("backdrop_season_finale", {}),
-                                "text": config.get("text_season_finale", {})})
+                                "text": config.get("text_season_finale", {})}, config)
             
             create_collection_yaml("TSSK_TV_SEASON_FINALE_COLLECTION.yml", season_finale_shows, config)
         
@@ -1789,7 +1938,7 @@ def main():
             
             create_overlay_yaml("TSSK_TV_FINAL_EPISODE_OVERLAYS.yml", final_episode_shows, 
                                {"backdrop": config.get("backdrop_final_episode", {}),
-                                "text": config.get("text_final_episode", {})})
+                                "text": config.get("text_final_episode", {})}, config)
             
             create_collection_yaml("TSSK_TV_FINAL_EPISODE_COLLECTION.yml", final_episode_shows, config)
 
@@ -1797,7 +1946,7 @@ def main():
         if process_returning_shows:
             create_returning_show_overlay_yaml("TSSK_TV_RETURNING_OVERLAYS.yml", 
                                               {"backdrop": config.get("backdrop_returning", {}),
-                                               "text": config.get("text_returning", {})}, use_tvdb)
+                                               "text": config.get("text_returning", {})}, use_tvdb, config)
             
             create_returning_show_collection_yaml("TSSK_TV_RETURNING_COLLECTION.yml", config, use_tvdb)
             print(f"\n'Returning shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
@@ -1806,7 +1955,7 @@ def main():
         if process_ended_shows:
             create_ended_show_overlay_yaml("TSSK_TV_ENDED_OVERLAYS.yml", 
                                          {"backdrop": config.get("backdrop_ended", {}),
-                                          "text": config.get("text_ended", {})}, use_tvdb)
+                                          "text": config.get("text_ended", {})}, use_tvdb, config)
             
             create_ended_show_collection_yaml("TSSK_TV_ENDED_COLLECTION.yml", config, use_tvdb)
             print(f"'Ended shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
@@ -1815,7 +1964,7 @@ def main():
         if process_canceled_shows:
             create_canceled_show_overlay_yaml("TSSK_TV_CANCELED_OVERLAYS.yml", 
                                              {"backdrop": config.get("backdrop_canceled", {}),
-                                              "text": config.get("text_canceled", {})}, use_tvdb)
+                                              "text": config.get("text_canceled", {})}, use_tvdb, config)
             
             create_canceled_show_collection_yaml("TSSK_TV_CANCELED_COLLECTION.yml", config, use_tvdb)
             print(f"'Canceled shows' overlay and collection .ymls created using {'TVDB' if use_tvdb else 'TMDB'} status filtering")
@@ -1864,6 +2013,7 @@ def main():
     except Exception as e:
         print(f"{RED}Unexpected error: {str(e)}{RESET}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
