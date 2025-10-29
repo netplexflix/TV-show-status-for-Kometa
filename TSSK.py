@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.10.08"
+VERSION = "2025.10.29"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1030,7 +1030,9 @@ def create_overlay_yaml(output_file, shows, config_sections, config):
 
         # Only add backdrop overlay if enabled
         if enable_backdrop and all_tvdb_ids:
-            backdrop_config["name"] = "backdrop"
+            # Check if user provided a custom name
+            if "name" not in backdrop_config:
+                backdrop_config["name"] = "backdrop"
             all_tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
             
             overlays_dict["backdrop"] = {
@@ -1047,12 +1049,18 @@ def create_overlay_yaml(output_file, shows, config_sections, config):
             use_text = text_config.pop("use_text", "New Season")
             capitalize_dates = text_config.pop("capitalize_dates", True)
             
+            # Check if user provided a custom name
+            has_custom_name = "name" in text_config
+            
             # For categories that need dates and shows with air dates, create date-specific overlays
             if date_to_tvdb_ids and not no_date_needed:
                 for date_str in sorted(date_to_tvdb_ids):
                     formatted_date = format_date(date_str, date_format, capitalize_dates)
                     sub_overlay_config = deepcopy(text_config)
-                    sub_overlay_config["name"] = f"text({use_text} {formatted_date})"
+                    
+                    # Only set name if user didn't provide a custom one
+                    if not has_custom_name:
+                        sub_overlay_config["name"] = f"text({use_text} {formatted_date})"
                     
                     tvdb_ids_for_date = sorted(tvdb_id for tvdb_id in date_to_tvdb_ids[date_str] if tvdb_id)
                     tvdb_ids_str = ", ".join(str(i) for i in tvdb_ids_for_date)
@@ -1065,7 +1073,10 @@ def create_overlay_yaml(output_file, shows, config_sections, config):
             # For shows without air dates or categories that don't need dates, create a single overlay
             else:
                 sub_overlay_config = deepcopy(text_config)
-                sub_overlay_config["name"] = f"text({use_text})"
+                
+                # Only set name if user didn't provide a custom one
+                if not has_custom_name:
+                    sub_overlay_config["name"] = f"text({use_text})"
                 
                 tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
                 
@@ -1199,7 +1210,9 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
         enable_backdrop = backdrop_config.pop("enable", True)
         
         if enable_backdrop:
-            backdrop_config["name"] = "backdrop"
+            # Check if user provided a custom name
+            if "name" not in backdrop_config:
+                backdrop_config["name"] = "backdrop"
             overlays_dict["backdrop"] = {
                 "plex_all": True,
                 "filters": {
@@ -1217,7 +1230,9 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
             text_config.pop("date_format", None)  # Remove if present
             text_config.pop("capitalize_dates", None)  # Remove if present
             
-            text_config["name"] = f"text({use_text})"
+            # Check if user provided a custom name
+            if "name" not in text_config:
+                text_config["name"] = f"text({use_text})"
             
             overlays_dict["new_show"] = {
                 "plex_all": True,
@@ -1358,7 +1373,9 @@ def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=Fa
         status_value = "continuing" if use_tvdb else "returning"
         
         if enable_backdrop:
-            backdrop_config["name"] = "backdrop"
+            # Check if user provided a custom name
+            if "name" not in backdrop_config:
+                backdrop_config["name"] = "backdrop"
             
             # Create filters dict with status filter first, then additional filters
             backdrop_filters = {status_filter: status_value}
@@ -1382,7 +1399,9 @@ def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=Fa
             text_config.pop("date_format", None)  # Remove if present
             text_config.pop("capitalize_dates", None)  # Remove if present
             
-            text_config["name"] = f"text({use_text})"
+            # Check if user provided a custom name
+            if "name" not in text_config:
+                text_config["name"] = f"text({use_text})"
             
             # Create filters dict with status filter first, then additional filters
             text_filters = {status_filter: status_value}
@@ -1524,7 +1543,9 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False,
         status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
         
         if enable_backdrop:
-            backdrop_config["name"] = "backdrop"
+            # Check if user provided a custom name
+            if "name" not in backdrop_config:
+                backdrop_config["name"] = "backdrop"
             
             # Create filters dict with status filter first, then additional filters
             backdrop_filters = {status_filter: "ended"}
@@ -1548,7 +1569,9 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False,
             text_config.pop("date_format", None)  # Remove if present
             text_config.pop("capitalize_dates", None)  # Remove if present
             
-            text_config["name"] = f"text({use_text})"
+            # Check if user provided a custom name
+            if "name" not in text_config:
+                text_config["name"] = f"text({use_text})"
             
             # Create filters dict with status filter first, then additional filters
             text_filters = {status_filter: "ended"}
@@ -1690,7 +1713,9 @@ def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=Fal
         status_filter = "tvdb_status" if use_tvdb else "tmdb_status"
         
         if enable_backdrop:
-            backdrop_config["name"] = "backdrop"
+            # Check if user provided a custom name
+            if "name" not in backdrop_config:
+                backdrop_config["name"] = "backdrop"
             
             # Create filters dict with status filter first, then additional filters
             backdrop_filters = {status_filter: "canceled"}
@@ -1714,7 +1739,9 @@ def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=Fal
             text_config.pop("date_format", None)  # Remove if present
             text_config.pop("capitalize_dates", None)  # Remove if present
             
-            text_config["name"] = f"text({use_text})"
+            # Check if user provided a custom name
+            if "name" not in text_config:
+                text_config["name"] = f"text({use_text})"
             
             # Create filters dict with status filter first, then additional filters
             text_filters = {status_filter: "canceled"}
