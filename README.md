@@ -1,6 +1,9 @@
-# 📺 TV Show Status for Kometa
+<p align="center">
+   <img width="567" height="204" alt="Image" src="https://github.com/user-attachments/assets/35eae37f-606c-4fbb-b063-fe80584e8af9" />
+</p>
 
-This script checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses and creates .yml files which can be used by [Kometa](https://kometa.wiki/) to create collections and overlays.</br>
+TSSK (TV Show Status for Kometa) checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses and creates .yml files<br>
+which can be used by [Kometa](https://kometa.wiki/) to create collections and overlays.</br>
 
 
 Categories:
