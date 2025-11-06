@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.10.29"
+VERSION = "2025.11.06"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1155,7 +1155,10 @@ def create_new_show_collection_yaml(output_file, config, recent_days):
             
         # Add plex_all and filters instead of tvdb_show
         collection_data["plex_all"] = True
-        collection_data["filters"] = {"added": recent_days}
+        collection_data["filters"] = {
+            "added": recent_days,
+            "label.not": "Coming Soon"
+        }
 
         # Create the final structure with ordered keys
         ordered_collection = OrderedDict()
@@ -1216,7 +1219,8 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
             overlays_dict["backdrop"] = {
                 "plex_all": True,
                 "filters": {
-                    "added": recent_days
+                    "added": recent_days,
+                    "label.not": "Coming Soon"
                 },
                 "overlay": backdrop_config
             }
@@ -1237,7 +1241,8 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
             overlays_dict["new_show"] = {
                 "plex_all": True,
                 "filters": {
-                    "added": recent_days
+                    "added": recent_days,
+                    "label.not": "Coming Soon"
                 },
                 "overlay": text_config
             }
@@ -1763,6 +1768,84 @@ def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=Fal
     except Exception as e:
         print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
 
+def sanitize_show_title(title):
+    """Remove special characters from show title"""
+    # Remove special characters: :,;.'"
+    special_chars = ':,;.\'"'
+    for char in special_chars:
+        title = title.replace(char, '')
+    return title.strip()
+
+def create_metadata_yaml(output_file, shows, config):
+    """Create metadata YAML file with sort_title based on air date and show name"""
+    # Ensure the directory exists
+    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+    except Exception as e:
+        print(f"{RED}Error creating directory {output_dir}: {str(e)}{RESET}")
+        return
+    
+    output_file_path = os.path.join(output_dir, output_file)
+
+    try:
+        if not shows:
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                f.write("#No matching shows found\n")
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+            return
+        
+        # Build metadata dictionary
+        metadata_dict = {}
+        
+        for show in shows:
+            tvdb_id = show.get('tvdbId')
+            air_date = show.get('airDate')  # Format: YYYY-MM-DD
+            title = show.get('title', '')
+            
+            if not tvdb_id or not air_date or not title:
+                continue
+            
+            # Convert date from YYYY-MM-DD to YYYYMMDD
+            date_yyyymmdd = air_date.replace('-', '')
+            
+            # Sanitize show title
+            clean_title = sanitize_show_title(title)
+            
+            # Create sort_title value
+            sort_title_value = f"{date_yyyymmdd} {clean_title}"
+            
+            # Add to metadata dict (tvdb_id as integer key)
+            metadata_dict[tvdb_id] = {
+                'sort_title': sort_title_value
+            }
+        
+        if not metadata_dict:
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                f.write("#No matching shows found\n")
+            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+            return
+        
+        # Sort by tvdb_id for consistent output
+        sorted_metadata = OrderedDict(sorted(metadata_dict.items()))
+        
+        final_output = {"metadata": sorted_metadata}
+        
+        # Custom representer to ensure tvdb_id is written as integer without quotes
+        def represent_int_key_dict(dumper, data):
+            return dumper.represent_mapping('tag:yaml.org,2002:map', 
+                                          ((int(k), v) for k, v in data.items()))
+        
+        yaml.add_representer(OrderedDict, represent_int_key_dict, Dumper=yaml.SafeDumper)
+        
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            yaml.dump(final_output, f, Dumper=yaml.SafeDumper, sort_keys=False, default_flow_style=False)
+        
+        debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
+        
+    except Exception as e:
+        print(f"{RED}Error writing file {output_file_path}: {str(e)}{RESET}")
+
 def main():
     start_time = datetime.now()
     print(f"{BLUE}{'*' * 40}\n{'*' * 11} TSSK {VERSION} {'*' * 12}\n{'*' * 40}{RESET}")
@@ -1851,7 +1934,7 @@ def main():
             matched_shows, skipped_shows = find_new_season_shows(
                 sonarr_url, sonarr_api_key, all_series, tag_mapping, future_days_new_season, utc_offset, skip_unmonitored
             )
-                            
+                                
             if matched_shows:
                 print(f"\n{GREEN}Shows with a new season starting within {future_days_new_season} days:{RESET}")
                 for show in matched_shows:
@@ -1865,6 +1948,8 @@ def main():
                                 "text": config.get("text_new_season", config.get("text", {}))}, config)
             
             create_collection_yaml("TSSK_TV_NEW_SEASON_COLLECTION.yml", matched_shows, config)
+            
+            create_metadata_yaml("TSSK_TV_NEW_SEASON_METADATA.yml", matched_shows, config)
 
         # ---- New Season Started ----
         if process_new_season_started:

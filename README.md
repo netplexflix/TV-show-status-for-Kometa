@@ -145,60 +145,65 @@ Manual install Example:
 
 ```yaml
 TV Shows:
+  metadata_files:
+  - file: P:/Scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_METADATA.yml
   overlay_files:
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_OVERLAYS.yml
   collection_files:
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_COLLECTION.yml
-    - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SHOW_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_SEASON_FINALE_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_CANCELED_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_ENDED_COLLECTION.yml
+  - file: P:/scripts/TSSK/kometa/TSSK_TV_RETURNING_COLLECTION.yml
 ```
 
 Docker install Example:
 
 ```yaml
 TV Shows:
+  metadata_files:
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_METADATA.yml
   overlay_files:
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_CANCELED_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_ENDED_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_CANCELED_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_ENDED_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_RETURNING_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_OVERLAYS.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_OVERLAYS.yml
   collection_files:
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_CANCELED_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_ENDED_COLLECTION.yml
-    - file: /config/kometa/tssk/TSSK_TV_RETURNING_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SHOW_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_NEW_SEASON_STARTED_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_UPCOMING_EPISODE_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_UPCOMING_FINALE_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_SEASON_FINALE_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_FINAL_EPISODE_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_CANCELED_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_ENDED_COLLECTION.yml
+  - file: /config/kometa/tssk/TSSK_TV_RETURNING_COLLECTION.yml
 ```
 
 > [!TIP]
 > Only add the files for the categories you want to enable. All are optional and independently generated based on your config settings.
+> If you add `TSSK_TV_NEW_SEASON_METADATA` the air date of the New Season premiere will be added to the beginning of the sort title so you can sort them by air date. 
 
 ### 2️⃣ Edit your configuration file
 ---
