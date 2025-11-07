@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.11.06"
+VERSION = "2025.11.07"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1776,9 +1776,8 @@ def sanitize_show_title(title):
         title = title.replace(char, '')
     return title.strip()
 
-def create_metadata_yaml(output_file, shows, config):
+def create_metadata_yaml(output_file, shows, config, sonarr_url, api_key, all_series, sonarr_timeout=90):
     """Create metadata YAML file with sort_title based on air date and show name"""
-    # Ensure the directory exists
     output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
@@ -1789,14 +1788,28 @@ def create_metadata_yaml(output_file, shows, config):
     output_file_path = os.path.join(output_dir, output_file)
 
     try:
-        if not shows:
-            with open(output_file_path, "w", encoding="utf-8") as f:
-                f.write("#No matching shows found\n")
-            debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
-            return
+        # Read existing metadata file to track previously modified shows
+        previously_modified_tvdb_ids = set()
+        try:
+            with open(output_file_path, 'r', encoding='utf-8') as f:
+                existing_data = yaml.safe_load(f)
+                if existing_data and 'metadata' in existing_data:
+                    # Only include shows that have sort_title starting with !yyyymmdd
+                    for tvdb_id, metadata in existing_data['metadata'].items():
+                        sort_title = metadata.get('sort_title', '')
+                        # Check if sort_title starts with ! followed by 8 digits
+                        if sort_title and sort_title.startswith('!') and len(sort_title) > 9:
+                            date_part = sort_title[1:9]  # Extract the 8 characters after !
+                            if date_part.isdigit():
+                                previously_modified_tvdb_ids.add(tvdb_id)
+        except FileNotFoundError:
+            pass  # First run, no existing file
+        except Exception as e:
+            print(f"{ORANGE}Warning: Could not read existing metadata file: {str(e)}{RESET}")
         
-        # Build metadata dictionary
+        # Build metadata dictionary for current matches
         metadata_dict = {}
+        current_tvdb_ids = set()
         
         for show in shows:
             tvdb_id = show.get('tvdbId')
@@ -1806,20 +1819,42 @@ def create_metadata_yaml(output_file, shows, config):
             if not tvdb_id or not air_date or not title:
                 continue
             
+            current_tvdb_ids.add(tvdb_id)
+            
             # Convert date from YYYY-MM-DD to YYYYMMDD
             date_yyyymmdd = air_date.replace('-', '')
             
             # Sanitize show title
             clean_title = sanitize_show_title(title)
             
-            # Create sort_title value
-            sort_title_value = f"{date_yyyymmdd} {clean_title}"
+            # Create sort_title value with date prefix
+            sort_title_value = f"!{date_yyyymmdd} {clean_title}"
             
-            # Add to metadata dict (tvdb_id as integer key)
+            # Add to metadata dict
             metadata_dict[tvdb_id] = {
                 'sort_title': sort_title_value
             }
         
+        # Find shows that were previously modified but are no longer in current matches
+        # These need to have their sort_title reverted to original title
+        shows_to_revert = previously_modified_tvdb_ids - current_tvdb_ids
+        
+        if shows_to_revert:
+            # Create a mapping of tvdb_id to series title from all_series
+            tvdb_to_title = {series.get('tvdbId'): series.get('title', '') 
+                           for series in all_series if series.get('tvdbId')}
+            
+            for tvdb_id in shows_to_revert:
+                # Get the original title from Sonarr data
+                original_title = tvdb_to_title.get(tvdb_id)
+                if original_title:
+                    # Sanitize the title to match what we did for the prefixed version
+                    clean_title = sanitize_show_title(original_title)
+                    metadata_dict[tvdb_id] = {
+                        'sort_title': clean_title
+                    }
+        
+        # Handle empty result
         if not metadata_dict:
             with open(output_file_path, "w", encoding="utf-8") as f:
                 f.write("#No matching shows found\n")
@@ -1840,6 +1875,9 @@ def create_metadata_yaml(output_file, shows, config):
         
         with open(output_file_path, "w", encoding="utf-8") as f:
             yaml.dump(final_output, f, Dumper=yaml.SafeDumper, sort_keys=False, default_flow_style=False)
+        
+        if shows_to_revert:
+            print(f"{GREEN}Reverting sort_title for {len(shows_to_revert)} shows no longer in 'new season soon' category{RESET}")
         
         debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
         
@@ -1949,7 +1987,7 @@ def main():
             
             create_collection_yaml("TSSK_TV_NEW_SEASON_COLLECTION.yml", matched_shows, config)
             
-            create_metadata_yaml("TSSK_TV_NEW_SEASON_METADATA.yml", matched_shows, config)
+            create_metadata_yaml("TSSK_TV_NEW_SEASON_METADATA.yml", matched_shows, config, sonarr_url, sonarr_api_key, all_series, sonarr_timeout)
 
         # ---- New Season Started ----
         if process_new_season_started:
