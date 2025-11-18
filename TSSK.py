@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.11.11"
+VERSION = "2025.11.18"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1006,12 +1006,17 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             debug_print(f"{GREEN}Created: {output_file_path}{RESET}", config)
             return
         
-        # Group shows by date if available
+        # Check if this is a new season overlay (needs season number grouping)
+        is_new_season = "NEW_SEASON_OVERLAYS" in output_file or "NEW_SEASON_STARTED_OVERLAYS" in output_file
+        
+        # Group shows by date and season number if it's new season overlay
+        date_season_to_tvdb_ids = defaultdict(lambda: defaultdict(list))
         date_to_tvdb_ids = defaultdict(list)
         all_tvdb_ids = set()
         
         # Check if this is a category that doesn't need dates
-        no_date_needed = "SEASON_FINALE" in output_file or "FINAL_EPISODE" in output_file or "NEW_SEASON_STARTED" in output_file
+        no_date_needed = ("SEASON_FINALE" in output_file or "FINAL_EPISODE" in output_file or 
+                         ("NEW_SEASON_STARTED" in output_file and "[#]" not in config_sections.get("text", {}).get("use_text", "")))
         
         for s in shows:
             if s.get("tvdbId"):
@@ -1019,7 +1024,11 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             
             # Only add to date groups if the show has an air date and dates are needed
             if s.get("airDate") and not no_date_needed:
-                date_to_tvdb_ids[s['airDate']].append(s.get('tvdbId'))
+                if is_new_season and s.get("seasonNumber"):
+                    # For new season overlays, group by both date and season number
+                    date_season_to_tvdb_ids[s['airDate']][s['seasonNumber']].append(s.get('tvdbId'))
+                else:
+                    date_to_tvdb_ids[s['airDate']].append(s.get('tvdbId'))
         
         overlays_dict = {}
         
@@ -1052,8 +1061,39 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             # Check if user provided a custom name
             has_custom_name = "name" in text_config
             
-            # For categories that need dates and shows with air dates, create date-specific overlays
-            if date_to_tvdb_ids and not no_date_needed:
+            # Check if this is NEW_SEASON_STARTED (no date in text)
+            is_new_season_started = "NEW_SEASON_STARTED_OVERLAYS" in output_file
+            
+            # For new season overlays with [#] placeholder
+            if is_new_season and date_season_to_tvdb_ids and "[#]" in use_text:
+                for date_str in sorted(date_season_to_tvdb_ids):
+                    formatted_date = format_date(date_str, date_format, capitalize_dates)
+                    
+                    # Group by season number for this date
+                    for season_num in sorted(date_season_to_tvdb_ids[date_str].keys()):
+                        sub_overlay_config = deepcopy(text_config)
+                        
+                        # Replace [#] with actual season number
+                        season_text = use_text.replace("[#]", str(season_num))
+                        
+                        # Only set name if user didn't provide a custom one
+                        if not has_custom_name:
+                            # For NEW_SEASON_STARTED, don't append date to text
+                            if is_new_season_started:
+                                sub_overlay_config["name"] = f"text({season_text})"
+                            else:
+                                sub_overlay_config["name"] = f"text({season_text} {formatted_date})"
+                        
+                        tvdb_ids_for_date_season = sorted(tvdb_id for tvdb_id in date_season_to_tvdb_ids[date_str][season_num] if tvdb_id)
+                        tvdb_ids_str = ", ".join(str(i) for i in tvdb_ids_for_date_season)
+                        
+                        block_key = f"TSSK_{formatted_date}_S{season_num}" if not is_new_season_started else f"TSSK_S{season_num}"
+                        overlays_dict[block_key] = {
+                            "overlay": sub_overlay_config,
+                            "tvdb_show": tvdb_ids_str
+                        }
+            # For categories that need dates and shows with air dates (no [#] placeholder)
+            elif date_to_tvdb_ids and not no_date_needed:
                 for date_str in sorted(date_to_tvdb_ids):
                     formatted_date = format_date(date_str, date_format, capitalize_dates)
                     sub_overlay_config = deepcopy(text_config)
@@ -1070,7 +1110,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
                         "overlay": sub_overlay_config,
                         "tvdb_show": tvdb_ids_str
                     }
-            # For shows without air dates or categories that don't need dates, create a single overlay
+            # For shows without air dates or categories that don't need dates
             else:
                 sub_overlay_config = deepcopy(text_config)
                 
@@ -1220,7 +1260,7 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
                 "plex_all": True,
                 "filters": {
                     "added": recent_days,
-                    "label.not": "Coming Soon"
+                    "label.not": "Coming Soon, RequestNeeded"
                 },
                 "overlay": backdrop_config
             }
@@ -1242,7 +1282,7 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
                 "plex_all": True,
                 "filters": {
                     "added": recent_days,
-                    "label.not": "Coming Soon"
+                    "label.not": "Coming Soon, RequestNeeded"
                 },
                 "overlay": text_config
             }

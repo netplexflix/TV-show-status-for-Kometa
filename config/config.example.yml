@@ -124,7 +124,7 @@ backdrop_new_season_started:
   weight: 35
 
 text_new_season_started:
-  use_text: "NEW SEASON STARTED"
+  use_text: "SEASON [#] STARTED"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
