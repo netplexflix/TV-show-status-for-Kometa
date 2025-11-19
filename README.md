@@ -250,7 +250,7 @@ For each category, you can change the relevant settings:
   - **capitalize_dates:** `true` will capitalize letters in dates.
   - **use_text:** Text to be used on the overlays before the date. e.h.: "NEW SEASON"
   - Change text color and positioning. You can add any relevant variables here. [More info here](https://kometa.wiki/en/latest/files/overlays/?h=overlay#text-overlay)
-  - For `New Season Soon`and `New Season Started` you can use [#] to display the season number
+  - For `New Season Soon`, `New Season Started` and `Upcoming Finale` you can use [#] to display the season number
 
 > [!TIP]
 > `group` and `weight` are used to determine which overlays are applied in case multiple are valid.
