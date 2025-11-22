@@ -11,6 +11,7 @@ use_tvdb: false
 skip_unmonitored: true
 ignore_finales_tags: ignorefinales
 utc_offset: +0
+simplify_next_week_dates: false
 
 process_new_shows: true
 process_new_season_soon: true

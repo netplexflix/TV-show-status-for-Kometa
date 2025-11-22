@@ -226,6 +226,7 @@ Rename `config.example.yml` to `config.yml` and edit the needed settings:
 >[!NOTE]
 > Some people may run their server on a different timezone (e.g. on a seedbox), therefor the script doesn't convert the air dates to your machine's local timezone. Instead, you can enter the utc offset you desire.<br>
 
+- **simplify_next_week_dates:** Will simplify dates to `today`, `tomorrow`, `friday` etc if the air date is within the coming week.
 - **process_:** Choose which categories you wish to process. Change to `false` to disable.
 
 For each category, you can change the relevant settings:
