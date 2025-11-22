@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.11.19"
+VERSION = "2025.11.22"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -780,9 +780,31 @@ def find_new_season_started(sonarr_url, api_key, all_series, recent_days_new_sea
     
     return matched_shows
 
-def format_date(yyyy_mm_dd, date_format, capitalize=False):
+def format_date(yyyy_mm_dd, date_format, capitalize=False, simplify_next_week=False, utc_offset=0):
     dt_obj = datetime.strptime(yyyy_mm_dd, "%Y-%m-%d")
     
+    # If simplify_next_week is enabled, check if date is within next 7 days
+    if simplify_next_week:
+        now_local = datetime.now(timezone.utc) + timedelta(hours=utc_offset)
+        today = now_local.date()
+        date_obj = dt_obj.date()
+        days_diff = (date_obj - today).days
+        
+        # Check if date is within the next 7 days (0-6 days from today)
+        if 0 <= days_diff <= 6:
+            if days_diff == 0:
+                result = "today"
+            elif days_diff == 1:
+                result = "tomorrow"
+            else:
+                # Use full weekday name
+                result = dt_obj.strftime('%A').lower()
+            
+            if capitalize:
+                result = result.upper()
+            return result
+    
+    # Original date formatting logic
     format_mapping = {
         'mmm': '%b',    # Abbreviated month name
         'mmmm': '%B',   # Full month name
@@ -1061,9 +1083,14 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
         text_config = deepcopy(config_sections.get("text", {}))
         enable_text = text_config.pop("enable", True)
         
+        # Get global settings
+        simplify_next_week = config.get("simplify_next_week_dates", False)
+        utc_offset = float(config.get('utc_offset', 0))
+        
         if enable_text and all_tvdb_ids:
             date_format = text_config.pop("date_format", "yyyy-mm-dd")
             use_text = text_config.pop("use_text", "New Season")
+            # capitalize_dates is category-specific, extracted from text_config
             capitalize_dates = text_config.pop("capitalize_dates", True)
             
             # Check if user provided a custom name
@@ -1107,7 +1134,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             # For NEW_SEASON and UPCOMING_FINALE with [#] placeholder (with dates)
             elif (is_new_season or is_upcoming_finale) and has_season_placeholder and date_season_to_tvdb_ids:
                 for date_str in sorted(date_season_to_tvdb_ids):
-                    formatted_date = format_date(date_str, date_format, capitalize_dates)
+                    formatted_date = format_date(date_str, date_format, capitalize_dates, simplify_next_week, utc_offset)
                     
                     # Group by season number for this date
                     for season_num in sorted(date_season_to_tvdb_ids[date_str].keys()):
@@ -1131,7 +1158,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             # For categories that need dates and shows with air dates (no [#] placeholder)
             elif date_to_tvdb_ids and not no_date_needed and not is_new_season_started and not (is_upcoming_finale and has_season_placeholder):
                 for date_str in sorted(date_to_tvdb_ids):
-                    formatted_date = format_date(date_str, date_format, capitalize_dates)
+                    formatted_date = format_date(date_str, date_format, capitalize_dates, simplify_next_week, utc_offset)
                     sub_overlay_config = deepcopy(text_config)
                     
                     # Only set name if user didn't provide a custom one

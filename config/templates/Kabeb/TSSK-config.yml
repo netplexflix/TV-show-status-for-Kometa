@@ -11,7 +11,6 @@ use_tvdb: false
 skip_unmonitored: true
 ignore_finales_tags: ignorefinales
 utc_offset: +0
-simplify_next_week_dates: true
 
 process_new_shows: true
 process_new_season_soon: true
@@ -28,7 +27,7 @@ process_canceled_shows: true
 ##########                         NEW SHOW:                          ##########
 ################################################################################
 
-recent_days_new_show: 7
+recent_days_new_show: 14
 
 collection_new_show:
   collection_name: "New Show"
@@ -38,26 +37,23 @@ collection_new_show:
 
 backdrop_new_show:
   enable: true
-  back_color: "#EB3233"
-  back_height: 90
-  back_width: 950
+  back_color: "#ff000095"
+  back_height: 100
+  back_width: 650
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
   vertical_offset: 20
-  group: TSSK_backdrop
-  weight: 50
+  back_radius: 25
 
 text_new_show:
   use_text: "RECENTLY ADDED"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
-  vertical_offset: 35
+  vertical_offset: 45
   font_size: 70
   font_color: "#FFFFFF"
-  group: TSSK_text
-  weight: 50
 
 ################################################################################
 ##########                     NEW SEASON SOON:                       ##########
@@ -77,24 +73,25 @@ collection_new_season:
 
 backdrop_new_season:
   enable: true
-  back_color: "#228B22"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#00C6A495"
+  back_height: 100
+  back_width: 550
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 25
 
 text_new_season:
-  date_format: "ddd dd/mm"
+  date_format: "dd/mm"
   capitalize_dates: true
-  use_text: "NEW SEASON"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  use_text: "RETURNS"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
   font_color: "#FFFFFF"
   group: TSSK_text
@@ -114,22 +111,23 @@ collection_new_season_started:
 
 backdrop_new_season_started:
   enable: true
-  back_color: "#228B22"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#00DD4C95"
+  back_height: 100
+  back_width: 480
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 35
 
 text_new_season_started:
-  use_text: "SEASON [#] STARTED"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  use_text: "NEW SEASON"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
   font_color: "#FFFFFF"
   group: TSSK_text
@@ -149,24 +147,25 @@ collection_upcoming_episode:
   
 backdrop_upcoming_episode:
   enable: true
-  back_color: "#006580"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#0400af95"
+  back_height: 100
+  back_width: 520
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 20
 
 text_upcoming_episode:
-  date_format: "ddd dd/mm"
+  date_format: "dd/mm"
   capitalize_dates: true
-  use_text: "NEXT EPISODE"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  use_text: "NEXT EP"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
   font_color: "#FFFFFF"
   group: TSSK_text
@@ -186,24 +185,25 @@ collection_upcoming_finale:
   
 backdrop_upcoming_finale:
   enable: true
-  back_color: "#9932CC"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#9D00FF95"
+  back_height: 100
+  back_width: 480
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 40
 
 text_upcoming_finale:
-  date_format: "ddd dd/mm"      # e.g., "yyyy-mm-dd", "mm/dd", "dd/mm", etc.
+  date_format: "dd/mm"      # e.g., "yyyy-mm-dd", "mm/dd", "dd/mm", etc.
   capitalize_dates: true
-  use_text: "FINALE AIRS"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  use_text: "FINALE"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
   font_color: "#FFFFFF"
   group: TSSK_text
@@ -223,22 +223,23 @@ collection_season_finale:
 
 backdrop_season_finale:
   enable: true
-  back_color: "#ffb902"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#fff20095"
+  back_height: 100
+  back_width: 560
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 30
 
 text_season_finale:
   use_text: "SEASON FINALE"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
   font_color: "#000000"
   group: TSSK_text
@@ -258,24 +259,25 @@ collection_final_episode:
 
 backdrop_final_episode:
   enable: true
-  back_color: "#ffb902"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  back_color: "#fff20095"
+  back_height: 100
+  back_width: 540
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 30
 
 text_final_episode:
   use_text: "FINAL EPISODE"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 35
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
-  font_color: "#000000"
+  font_color: "#00000095"
   group: TSSK_text
   weight: 30
 
@@ -290,25 +292,26 @@ collection_returning:
   ignore_blank_results: true
 
 backdrop_returning:
-  enable: false
-  back_color: "#000000"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  enable: true
+  back_color: "#b5008d95"
+  back_height: 100
+  back_width: 420
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 10
 
 text_returning:
-  use_text: "R E T U R N I N G"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 50
+  use_text: "RETURNING"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
-  font_color: "#ff9000"
+  font_color: "#FFFFFF"
   group: TSSK_text
   weight: 10
 
@@ -327,25 +330,26 @@ collection_ended:
   sync_mode: append
 
 backdrop_ended:
-  enable: false
-  back_color: "#000000"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  enable: true
+  back_color: "#0400af95"
+  back_height: 100
+  back_width: 260
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 10
 
 text_ended:
-  use_text: "E N D E D"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 50
+  use_text: "ENDED"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
-  font_color: "#00ff3d"
+  font_color: "#FFFFFF"
   group: TSSK_text
   weight: 10
 
@@ -365,24 +369,25 @@ collection_canceled:
   sync_mode: append
 
 backdrop_canceled:
-  enable: false
-  back_color: "#000000"
-  back_height: 90
-  back_width: 950
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 20
+  enable: true
+  back_color: "#ff000095"
+  back_height: 100
+  back_width: 390
+  horizontal_align: left
+  horizontal_offset: 170
+  vertical_align: top
+  vertical_offset: 45
+  back_radius: 25
   group: TSSK_backdrop
   weight: 10
 
 text_canceled:
-  use_text: "C A N C E L E D"
-  horizontal_align: center
-  horizontal_offset: 0
-  vertical_align: bottom
-  vertical_offset: 50
+  use_text: "CANCELED"
+  horizontal_align: left
+  horizontal_offset: 190
+  vertical_align: top
+  vertical_offset: 70
   font_size: 70
-  font_color: "#EB3233"
+  font_color: "#FFFFFF"
   group: TSSK_text
   weight: 10
