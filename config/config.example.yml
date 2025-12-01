@@ -32,9 +32,11 @@ recent_days_new_show: 7
 
 collection_new_show:
   collection_name: "New Show"
-  smart_label: added.desc
-  sort_title: "+1_2New Shows"
+  item_label: NewShow
+  non_item_remove_label: NewShow
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
 
 backdrop_new_show:
   enable: true
@@ -67,12 +69,10 @@ future_days_new_season: 31
 
 collection_new_season:
   collection_name: "New Season Soon"
-  smart_label: title.desc
-  sort_title: "+1_2New Season Soon"
-  ignore_blank_results: true
-  item_label: New Season Soon
-  non_item_remove_label: New Season Soon
+  item_label: NewSeasonSoon
+  non_item_remove_label: NewSeasonSoon
   build_collection: false
+  ignore_blank_results: true
   sync_mode: append
 
 backdrop_new_season:
@@ -108,9 +108,11 @@ recent_days_new_season_started: 7
 
 collection_new_season_started:
   collection_name: "New Season Started"
-  smart_label: title.desc
-  sort_title: "+1_2New Season Started"
+  item_label: NewSeasonStarted
+  non_item_remove_label: NewSeasonStarted
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
 
 backdrop_new_season_started:
   enable: true
@@ -143,9 +145,11 @@ future_days_upcoming_episode: 31
 
 collection_upcoming_episode:
   collection_name: "Upcoming Episode"
-  smart_label: title.desc
-  sort_title: "+1_2Upcoming Episode"
+  item_label: UpcomingEpisode
+  non_item_remove_label: UpcomingEpisode
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
   
 backdrop_upcoming_episode:
   enable: true
@@ -180,9 +184,11 @@ future_days_upcoming_finale: 31
 
 collection_upcoming_finale:
   collection_name: "Upcoming Finale"
-  smart_label: title.desc
-  sort_title: "+1_2Upcoming Finale"
+  item_label: UpcomingFinale
+  non_item_remove_label: UpcomingFinale
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
   
 backdrop_upcoming_finale:
   enable: true
@@ -217,9 +223,11 @@ recent_days_season_finale: 7
 
 collection_season_finale:
   collection_name: "Season Finale"
-  smart_label: title.desc
-  sort_title: "+1_2Season Finale"
+  item_label: SeasonFinale
+  non_item_remove_label: SeasonFinale
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
 
 backdrop_season_finale:
   enable: true
@@ -252,9 +260,11 @@ recent_days_final_episode: 7
 
 collection_final_episode:
   collection_name: "Final Episode"
-  smart_label: title.desc
-  sort_title: "+1_2Final Episode"
+  item_label: FinalEpisode
+  non_item_remove_label: FinalEpisode
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
 
 backdrop_final_episode:
   enable: true
@@ -285,9 +295,11 @@ text_final_episode:
 
 collection_returning:
   collection_name: "Returning Shows"
-  smart_label: title.desc
-  sort_title: "+1_2Returning Shows"
+  item_label: ReturningShows
+  non_item_remove_label: ReturningShows
+  build_collection: false
   ignore_blank_results: true
+  sync_mode: append
 
 backdrop_returning:
   enable: false
@@ -318,12 +330,10 @@ text_returning:
 
 collection_ended:
   collection_name: "Ended Shows"
-  smart_label: title.desc
-  sort_title: "+1_2Ended Shows"
-  ignore_blank_results: true
-  item_label: ended_shows
-  non_item_remove_label: ended_shows
+  item_label: EndedShows
+  non_item_remove_label: EndedShows
   build_collection: false
+  ignore_blank_results: true
   sync_mode: append
 
 backdrop_ended:
@@ -355,13 +365,10 @@ text_ended:
 
 collection_canceled:
   collection_name: "Canceled Shows"
-  smart_label: title.desc
-  sort_title: "+1_2Canceled Shows"
-  ignore_blank_results: true
-  summary: Canceled shows test
-  item_label: canceled_shows
-  non_item_remove_label: canceled_shows
+  item_label: CanceledShows
+  non_item_remove_label: CanceledShows
   build_collection: false
+  ignore_blank_results: true
   sync_mode: append
 
 backdrop_canceled:
