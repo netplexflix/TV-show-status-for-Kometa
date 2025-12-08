@@ -20,7 +20,7 @@ ls -la /config/kometa/ || log "${YELLOW}Warning: /config/kometa/ does not exist$
 
 # Function to get next cron run time
 get_next_cron_time() {
-    python3 -c "
+    /usr/local/bin/python3 -c "
 import datetime
 
 def parse_cron_field(field, min_val, max_val):
@@ -128,13 +128,17 @@ except (ValueError, IndexError) as e:
 }
 
 # Create a wrapper script that includes the next schedule calculation
-cat > /app/run-tssk.sh << 'WRAPPER_EOF'
+# NOTE: Using double quotes to allow ${TZ} interpolation at creation time
+cat > /app/run-tssk.sh << WRAPPER_EOF
 #!/bin/bash
 
 # Set timezone if TZ is set
-if [ -n "${TZ}" ]; then
-    export TZ="${TZ}"
+if [ -n "\${TZ}" ]; then
+    export TZ="\${TZ}"
 fi
+
+# Also set it from the environment variable passed during creation
+export TZ="${TZ:-UTC}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -150,7 +154,7 @@ log() {
 
 # Function to get next cron run time
 get_next_cron_time() {
-    python3 -c "
+    /usr/local/bin/python3 -c "
 import datetime
 
 def parse_cron_field(field, min_val, max_val):
@@ -258,7 +262,7 @@ except (ValueError, IndexError) as e:
 }
 
 cd /app
-export DOCKER=true
+export DOCKER=true PATH=/usr/local/bin:$PATH
 /usr/local/bin/python TSSK.py
 
 # Calculate and display next run time
@@ -270,8 +274,19 @@ chmod +x /app/run-tssk.sh
 
 log "${BLUE}TSSK is starting with the following cron schedule: ${CRON}${NC}"
 
-# Create cron job that uses the wrapper script
-echo "${CRON} cd /app && /app/run-tssk.sh 2>&1 | tee -a /var/log/cron.log" > /etc/cron.d/tssk-cron
+# Get TZ for cron
+CRON_TZ="${TZ:-UTC}"
+
+# Setup cron job with proper PATH
+cat > /etc/cron.d/tssk-cron << 'CRONEOF'
+PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+SHELL=/bin/bash
+CRONEOF
+
+echo "TZ=${CRON_TZ}" >> /etc/cron.d/tssk-cron
+echo "" >> /etc/cron.d/tssk-cron
+echo "${CRON} root /bin/bash -c \"/app/run-tssk.sh >> /var/log/cron.log 2>&1\"" >> /etc/cron.d/tssk-cron
+
 chmod 0644 /etc/cron.d/tssk-cron
 crontab /etc/cron.d/tssk-cron
 
