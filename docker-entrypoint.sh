@@ -128,16 +128,11 @@ except (ValueError, IndexError) as e:
 }
 
 # Create a wrapper script that includes the next schedule calculation
-# NOTE: Using double quotes to allow ${TZ} interpolation at creation time
+# We need to bake the CRON value in but escape other variables
 cat > /app/run-tssk.sh << WRAPPER_EOF
 #!/bin/bash
 
-# Set timezone if TZ is set
-if [ -n "\${TZ}" ]; then
-    export TZ="\${TZ}"
-fi
-
-# Also set it from the environment variable passed during creation
+# Set timezone - use passed value or default to UTC
 export TZ="${TZ:-UTC}"
 
 # Colors for output
@@ -149,7 +144,7 @@ NC='\033[0m' # No Color
 
 # Function to log with timestamp
 log() {
-    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo -e "[\$(date '+%Y-%m-%d %H:%M:%S')] \$1"
 }
 
 # Function to get next cron run time
@@ -262,12 +257,12 @@ except (ValueError, IndexError) as e:
 }
 
 cd /app
-export DOCKER=true PATH=/usr/local/bin:$PATH
+export DOCKER=true PATH=/usr/local/bin:\$PATH
 /usr/local/bin/python TSSK.py
 
 # Calculate and display next run time
-NEXT_RUN=$(get_next_cron_time)
-log "${BLUE}Next execution scheduled for: ${NEXT_RUN}${NC}"
+NEXT_RUN=\$(get_next_cron_time)
+log "\${BLUE}Next execution scheduled for: \${NEXT_RUN}\${NC}"
 WRAPPER_EOF
 
 chmod +x /app/run-tssk.sh
