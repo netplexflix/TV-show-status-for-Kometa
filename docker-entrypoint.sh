@@ -135,6 +135,10 @@ cat > /app/run-tssk.sh << WRAPPER_EOF
 # Set timezone - use passed value or default to UTC
 export TZ="${TZ:-UTC}"
 
+# Ensure the output directory exists and is writable
+mkdir -p /config/kometa/tssk
+chmod -R 755 /config/kometa/tssk
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
