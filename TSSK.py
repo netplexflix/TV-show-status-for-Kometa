@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2025.12.19"
+VERSION = "2025.12.21"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -1032,6 +1032,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
         is_new_season = "NEW_SEASON_OVERLAYS" in output_file or "NEW_SEASON_STARTED_OVERLAYS" in output_file
         is_new_season_started = "NEW_SEASON_STARTED_OVERLAYS" in output_file
         is_upcoming_finale = "UPCOMING_FINALE_OVERLAYS" in output_file
+        is_season_finale = "SEASON_FINALE_OVERLAYS" in output_file
         
         # Check if [#] placeholder is being used
         use_text_value = config_sections.get("text", {}).get("use_text", "")
@@ -1039,7 +1040,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
         
         # Group shows by date and season number if it's new season overlay
         date_season_to_tvdb_ids = defaultdict(lambda: defaultdict(list))
-        season_to_tvdb_ids = defaultdict(list)  # For NEW_SEASON_STARTED with [#] (no dates)
+        season_to_tvdb_ids = defaultdict(list)  # For NEW_SEASON_STARTED and SEASON_FINALE with [#] (no dates)
         date_to_tvdb_ids = defaultdict(list)
         all_tvdb_ids = set()
         
@@ -1050,10 +1051,10 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             if s.get("tvdbId"):
                 all_tvdb_ids.add(s['tvdbId'])
             
-            # For NEW_SEASON_STARTED with [#], group by season only (no dates)
-            if is_new_season_started and has_season_placeholder and s.get("seasonNumber"):
+            # For NEW_SEASON_STARTED or SEASON_FINALE with [#], group by season only (no dates)
+            if (is_new_season_started or is_season_finale) and has_season_placeholder and s.get("seasonNumber"):
                 season_to_tvdb_ids[s['seasonNumber']].append(s.get('tvdbId'))
-            # For NEW_SEASON_OVERLAYS or UPCOMING_FINALE with [#], group by date AND season
+            # For NEW_SEASON or UPCOMING_FINALE with [#], group by date AND season
             elif (is_new_season or is_upcoming_finale) and has_season_placeholder and s.get("airDate") and s.get("seasonNumber"):
                 date_season_to_tvdb_ids[s['airDate']][s['seasonNumber']].append(s.get('tvdbId'))
             # For all other cases with dates (including NEW_SEASON without [#])
@@ -1096,8 +1097,8 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
             # Check if user provided a custom name
             has_custom_name = "name" in text_config
             
-            # For NEW_SEASON_STARTED [#] placeholder (no dates)
-            if is_new_season_started and has_season_placeholder and season_to_tvdb_ids:
+            # For NEW_SEASON_STARTED or SEASON_FINALE with [#] placeholder (no dates)
+            if (is_new_season_started or is_season_finale) and has_season_placeholder and season_to_tvdb_ids:
                 for season_num in sorted(season_to_tvdb_ids.keys()):
                     sub_overlay_config = deepcopy(text_config)
                     
@@ -1116,8 +1117,8 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
                         "overlay": sub_overlay_config,
                         "tvdb_show": tvdb_ids_str
                     }
-            # For NEW_SEASON_STARTED without [#] placeholder (no dates needed, group all shows together)
-            elif is_new_season_started and not has_season_placeholder:
+            # For NEW_SEASON_STARTED or SEASON_FINALE without [#] placeholder (no dates needed, group all shows together)
+            elif (is_new_season_started or is_season_finale) and not has_season_placeholder:
                 sub_overlay_config = deepcopy(text_config)
                 
                 # Only set name if user didn't provide a custom one
@@ -1126,7 +1127,12 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
                 
                 tvdb_ids_str = ", ".join(str(i) for i in sorted(all_tvdb_ids) if i)
                 
-                block_key = "TSSK_new_season_started"
+                # Determine block key based on category
+                if is_new_season_started:
+                    block_key = "TSSK_new_season_started"
+                else:  # is_season_finale
+                    block_key = "TSSK_season_finale"
+                
                 overlays_dict[block_key] = {
                     "overlay": sub_overlay_config,
                     "tvdb_show": tvdb_ids_str
@@ -1156,7 +1162,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
                             "tvdb_show": tvdb_ids_str
                         }
             # For categories that need dates and shows with air dates (no [#] placeholder)
-            elif date_to_tvdb_ids and not no_date_needed and not is_new_season_started and not (is_upcoming_finale and has_season_placeholder):
+            elif date_to_tvdb_ids and not no_date_needed and not is_new_season_started and not is_season_finale and not (is_upcoming_finale and has_season_placeholder):
                 for date_str in sorted(date_to_tvdb_ids):
                     formatted_date = format_date(date_str, date_format, capitalize_dates, simplify_next_week, utc_offset)
                     sub_overlay_config = deepcopy(text_config)
@@ -1186,7 +1192,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
                 # Extract category name from filename
                 if is_new_season_started:
                     block_key = "TSSK_new_season_started"
-                elif "SEASON_FINALE" in output_file:
+                elif is_season_finale:
                     block_key = "TSSK_season_finale"
                 elif "FINAL_EPISODE" in output_file:
                     block_key = "TSSK_final_episode"

@@ -90,7 +90,7 @@ backdrop_new_season:
 text_new_season:
   date_format: "ddd dd/mm"
   capitalize_dates: true
-  use_text: "NEW SEASON"
+  use_text: "SEASON [#] AIRS"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
@@ -242,7 +242,7 @@ backdrop_season_finale:
   weight: 30
 
 text_season_finale:
-  use_text: "SEASON FINALE"
+  use_text: "SEASON [#] FINALE"
   horizontal_align: center
   horizontal_offset: 0
   vertical_align: bottom
