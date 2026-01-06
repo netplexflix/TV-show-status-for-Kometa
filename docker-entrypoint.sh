@@ -12,11 +12,23 @@ log() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
+# Determine output directory - check /config/kometa first (backwards compatible), then /app/kometa
+if [ -d "/config/kometa" ] || mkdir -p /config/kometa 2>/dev/null; then
+    OUTPUT_DIR="/config/kometa"
+    log "${BLUE}Using output directory: /config/kometa (mounted volume detected)${NC}"
+else
+    OUTPUT_DIR="/app/kometa"
+    log "${BLUE}Using output directory: /app/kometa (default)${NC}"
+fi
+
 # Ensure the output directory exists and is writable
 log "${BLUE}Creating output directory...${NC}"
-mkdir -p /app/kometa
-chmod -R 755 /app/kometa
-ls -la /app/kometa/ || log "${YELLOW}Warning: /app/kometa/ does not exist${NC}"
+mkdir -p "${OUTPUT_DIR}"
+chmod -R 755 "${OUTPUT_DIR}" 2>/dev/null || true
+ls -la "${OUTPUT_DIR}/" || log "${YELLOW}Warning: ${OUTPUT_DIR}/ does not exist${NC}"
+
+# Export for Python script to use
+export TSSK_OUTPUT_DIR="${OUTPUT_DIR}"
 
 # Function to get next cron run time
 get_next_cron_time() {
@@ -135,9 +147,12 @@ cat > /app/run-tssk.sh << WRAPPER_EOF
 # Set timezone - use passed value or default to UTC
 export TZ="${TZ:-UTC}"
 
+# Pass through the output directory
+export TSSK_OUTPUT_DIR="${OUTPUT_DIR}"
+
 # Ensure the output directory exists and is writable
-mkdir -p /app/kometa
-chmod -R 755 /app/kometa
+mkdir -p "${OUTPUT_DIR}"
+chmod -R 755 "${OUTPUT_DIR}" 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -283,6 +298,7 @@ SHELL=/bin/bash
 CRONEOF
 
 echo "TZ=${CRON_TZ}" >> /etc/cron.d/tssk-cron
+echo "TSSK_OUTPUT_DIR=${OUTPUT_DIR}" >> /etc/cron.d/tssk-cron
 echo "" >> /etc/cron.d/tssk-cron
 echo "${CRON} root /bin/bash -c \"/app/run-tssk.sh >> /var/log/cron.log 2>&1\"" >> /etc/cron.d/tssk-cron
 
@@ -295,6 +311,7 @@ touch /var/log/cron.log
 log "${GREEN}Running TSSK on startup...${NC}"
 log "${BLUE}Current directory: $(pwd)${NC}"
 log "${BLUE}DOCKER env var: $DOCKER${NC}"
+log "${BLUE}Output directory: ${OUTPUT_DIR}${NC}"
 /app/run-tssk.sh 2>&1 | tee -a /var/log/cron.log
 
 log "${GREEN}Startup run completed. Starting cron daemon...${NC}"
