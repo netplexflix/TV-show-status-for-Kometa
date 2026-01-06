@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2026.01.0604"
+VERSION = "2026.01.06"
 
 # ANSI color codes
 GREEN = '\033[32m'
