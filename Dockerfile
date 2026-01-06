@@ -5,6 +5,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     CRON="0 2 * * *"
+    DOCKER=true
 # default: run at 2AM daily
 
 # Set working directory
