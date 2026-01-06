@@ -12,13 +12,23 @@ log() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Determine output directory - check /config/kometa first (backwards compatible), then /app/kometa
-if [ -d "/config/kometa" ] || mkdir -p /config/kometa 2>/dev/null; then
+get_device_id() {
+    stat -c %d "$1" 2>/dev/null || echo "0"
+}
+
+ROOT_DEVICE=$(get_device_id /)
+APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
+CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
+
+if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+    OUTPUT_DIR="/app/kometa"
+    log "${BLUE}Using output directory: /app/kometa (unRAID mount detected)${NC}"
+elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
     OUTPUT_DIR="/config/kometa/tssk"
-    log "${BLUE}Using output directory: /config/kometa/tssk (mounted volume detected)${NC}"
+    log "${BLUE}Using output directory: /config/kometa/tssk (docker-compose mount detected)${NC}"
 else
     OUTPUT_DIR="/app/kometa"
-    log "${BLUE}Using output directory: /app/kometa (default)${NC}"
+    log "${YELLOW}No mount detected, using default: /app/kometa${NC}"
 fi
 
 # Ensure the output directory exists and is writable
@@ -140,7 +150,6 @@ except (ValueError, IndexError) as e:
 }
 
 # Create a wrapper script that includes the next schedule calculation
-# We need to bake the CRON value in but escape other variables
 cat > /app/run-tssk.sh << WRAPPER_EOF
 #!/bin/bash
 
@@ -276,7 +285,7 @@ except (ValueError, IndexError) as e:
 }
 
 cd /app
-export DOCKER=true PATH=/usr/local/bin:\$PATH
+export PATH=/usr/local/bin:\$PATH
 /usr/local/bin/python TSSK.py
 
 # Calculate and display next run time
@@ -310,7 +319,6 @@ touch /var/log/cron.log
 # Run once on startup using the wrapper script
 log "${GREEN}Running TSSK on startup...${NC}"
 log "${BLUE}Current directory: $(pwd)${NC}"
-log "${BLUE}DOCKER env var: $DOCKER${NC}"
 log "${BLUE}Output directory: ${OUTPUT_DIR}${NC}"
 /app/run-tssk.sh 2>&1 | tee -a /var/log/cron.log
 
