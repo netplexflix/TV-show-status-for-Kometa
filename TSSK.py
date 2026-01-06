@@ -91,7 +91,7 @@ def debug_print(message, config):
 
 def ensure_output_directory():
     """Ensure the output directory exists and is writable"""
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
         # Test write permissions
@@ -848,7 +848,7 @@ def format_date(yyyy_mm_dd, date_format, capitalize=False, simplify_next_week=Fa
 
 def create_collection_yaml(output_file, shows, config):
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1012,7 +1012,7 @@ def create_collection_yaml(output_file, shows, config):
 
 def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_block_name="backdrop"):
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1217,7 +1217,7 @@ def create_overlay_yaml(output_file, shows, config_sections, config, backdrop_bl
 
 def create_new_show_collection_yaml(output_file, config, recent_days):
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1307,7 +1307,7 @@ def create_new_show_collection_yaml(output_file, config, recent_days):
 def create_new_show_overlay_yaml(output_file, config_sections, recent_days, config, backdrop_block_name="backdrop_new_show"):
     """Create overlay YAML for new shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1370,7 +1370,7 @@ def create_new_show_overlay_yaml(output_file, config_sections, recent_days, conf
 def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for returning shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1466,7 +1466,7 @@ def create_returning_show_collection_yaml(output_file, config, use_tvdb=False):
 def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None, backdrop_block_name="backdrop_returning"):
     """Create overlay YAML for returning shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1542,7 +1542,7 @@ def create_returning_show_overlay_yaml(output_file, config_sections, use_tvdb=Fa
 def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for ended shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1637,7 +1637,7 @@ def create_ended_show_collection_yaml(output_file, config, use_tvdb=False):
 def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None, backdrop_block_name="backdrop_ended"):
     """Create overlay YAML for ended shows using Plex filters instead of Sonarr data"""  
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1712,7 +1712,7 @@ def create_ended_show_overlay_yaml(output_file, config_sections, use_tvdb=False,
 def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
     """Create collection YAML for canceled shows using Plex filters instead of Sonarr data"""
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1807,7 +1807,7 @@ def create_canceled_show_collection_yaml(output_file, config, use_tvdb=False):
 def create_canceled_show_overlay_yaml(output_file, config_sections, use_tvdb=False, config=None, backdrop_block_name="backdrop_canceled"):
     """Create overlay YAML for canceled shows using Plex filters"""  
     # Ensure the directory exists
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:
@@ -1889,7 +1889,7 @@ def sanitize_show_title(title):
 
 def create_metadata_yaml(output_file, shows, config, sonarr_url, api_key, all_series, sonarr_timeout=90):
     """Create metadata YAML file with sort_title based on air date and show name"""
-    output_dir = "/config/kometa/tssk/" if IS_DOCKER else "kometa/"
+    output_dir = "/app/kometa/" if IS_DOCKER else "kometa/"
     try:
         os.makedirs(output_dir, exist_ok=True)
     except Exception as e:

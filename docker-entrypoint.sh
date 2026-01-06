@@ -14,9 +14,9 @@ log() {
 
 # Ensure the output directory exists and is writable
 log "${BLUE}Creating output directory...${NC}"
-mkdir -p /config/kometa/tssk
-chmod -R 755 /config/kometa/tssk
-ls -la /config/kometa/ || log "${YELLOW}Warning: /config/kometa/ does not exist${NC}"
+mkdir -p /app/kometa
+chmod -R 755 /app/kometa
+ls -la /app/kometa/ || log "${YELLOW}Warning: /app/kometa/ does not exist${NC}"
 
 # Function to get next cron run time
 get_next_cron_time() {
@@ -136,8 +136,8 @@ cat > /app/run-tssk.sh << WRAPPER_EOF
 export TZ="${TZ:-UTC}"
 
 # Ensure the output directory exists and is writable
-mkdir -p /config/kometa/tssk
-chmod -R 755 /config/kometa/tssk
+mkdir -p /app/kometa
+chmod -R 755 /app/kometa
 
 # Colors for output
 RED='\033[0;31m'
