@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Disable .pyc files and enable real-time logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    CRON="0 2 * * *"
+    CRON="0 2 * * *"\
     DOCKER=true
 # default: run at 2AM daily
 
