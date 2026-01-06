@@ -10,7 +10,7 @@ from copy import deepcopy
 
 # Constants
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
-VERSION = "2026.01.0602"
+VERSION = "2026.01.0603"
 
 # ANSI color codes
 GREEN = '\033[32m'
@@ -25,7 +25,7 @@ def get_output_directory():
     Determine the output directory for YAML files.
     Priority order:
     1. TSSK_OUTPUT_DIR environment variable (set by entrypoint)
-    2. /config/kometa if it exists and is writable (backwards compatible)
+    2. /config/kometa/tssk if /config/kometa exists and is writable (backwards compatible)
     3. /app/kometa (new default for unRAID and other platforms)
     4. kometa/ (non-Docker local usage)
     """
@@ -46,7 +46,8 @@ def get_output_directory():
             with open(test_file, "w") as f:
                 f.write("test")
             os.remove(test_file)
-            return config_kometa + "/"
+            # Use the tssk subfolder for backwards compatibility
+            return config_kometa + "/tssk/"
         except (IOError, OSError):
             pass
     

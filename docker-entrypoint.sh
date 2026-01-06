@@ -14,8 +14,8 @@ log() {
 
 # Determine output directory - check /config/kometa first (backwards compatible), then /app/kometa
 if [ -d "/config/kometa" ] || mkdir -p /config/kometa 2>/dev/null; then
-    OUTPUT_DIR="/config/kometa"
-    log "${BLUE}Using output directory: /config/kometa (mounted volume detected)${NC}"
+    OUTPUT_DIR="/config/kometa/tssk"
+    log "${BLUE}Using output directory: /config/kometa/tssk (mounted volume detected)${NC}"
 else
     OUTPUT_DIR="/app/kometa"
     log "${BLUE}Using output directory: /app/kometa (default)${NC}"
