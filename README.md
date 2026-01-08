@@ -1,5 +1,8 @@
 <p align="center">
-   <img width="567" height="204" alt="Image" src="https://github.com/user-attachments/assets/35eae37f-606c-4fbb-b063-fe80584e8af9" />
+   <img width="567" height="204" alt="Image" src="https://github.com/user-attachments/assets/35eae37f-606c-4fbb-b063-fe80584e8af9" /><br>
+   <a href="https://github.com/netplexflix/TV-show-status-for-Kometa/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/netplexflix/TV-show-status-for-Kometa?style=plastic"></a> <a href="https://hub.docker.com/repository/docker/netplexflix/tssk"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/netplexflix/tssk?style=plastic"></a> <a href="https://discord.gg/VBNUJd7tx3"><img alt="Discord" src="https://img.shields.io/discord/1329439972796928041?style=plastic&label=Discord"></a>
+
+
 </p>
 
 TSSK (TV Show Status for Kometa) checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses and creates .yml files<br>
