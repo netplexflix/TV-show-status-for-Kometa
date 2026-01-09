@@ -22,11 +22,18 @@ detect_output_dir() {
     local APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
     local CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
 
+    log "${BLUE}Debug: ROOT_DEVICE=${ROOT_DEVICE}${NC}"
+    log "${BLUE}Debug: APP_KOMETA_DEVICE=${APP_KOMETA_DEVICE}${NC}"
+    log "${BLUE}Debug: CONFIG_KOMETA_DEVICE=${CONFIG_KOMETA_DEVICE}${NC}"
+
     if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+        log "${GREEN}Debug: Detected /app/kometa as mounted volume${NC}"
         echo "/app/kometa"
     elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+        log "${GREEN}Debug: Detected /config/kometa as mounted volume${NC}"
         echo "/config/kometa/tssk"
     else
+        log "${YELLOW}Debug: No mounted volume detected, using default /app/kometa${NC}"
         echo "/app/kometa"
     fi
 }
@@ -43,115 +50,6 @@ ls -la "${OUTPUT_DIR}/" || log "${YELLOW}Warning: ${OUTPUT_DIR}/ does not exist$
 
 # Export for Python script to use
 export TSSK_OUTPUT_DIR="${OUTPUT_DIR}"
-
-# Function to get next cron run time
-get_next_cron_time() {
-    /usr/local/bin/python3 -c "
-import datetime
-
-def parse_cron_field(field, min_val, max_val):
-    \"\"\"Parse a cron field and return a sorted list of valid values.\"\"\"
-    values = set()
-    
-    for part in field.split(','):
-        part = part.strip()
-        
-        # Handle step values (*/n or n-m/step)
-        if '/' in part:
-            range_part, step = part.split('/')
-            step = int(step)
-            
-            if range_part == '*':
-                start, end = min_val, max_val
-            elif '-' in range_part:
-                start, end = map(int, range_part.split('-'))
-            else:
-                start = int(range_part)
-                end = max_val
-            
-            values.update(range(start, end + 1, step))
-        
-        # Handle ranges (n-m)
-        elif '-' in part:
-            start, end = map(int, part.split('-'))
-            values.update(range(start, end + 1))
-        
-        # Handle wildcard (*)
-        elif part == '*':
-            values.update(range(min_val, max_val + 1))
-        
-        # Handle single number
-        else:
-            values.add(int(part))
-    
-    return sorted(list(values))
-
-cron_expression = '$CRON'
-parts = cron_expression.split()
-
-if len(parts) != 5:
-    print('Unable to parse cron expression')
-    exit(0)
-
-minute_field, hour_field, day_field, month_field, dow_field = parts
-
-try:
-    # Parse each field
-    minutes = parse_cron_field(minute_field, 0, 59)
-    hours = parse_cron_field(hour_field, 0, 23)
-    days = parse_cron_field(day_field, 1, 31) if day_field != '*' else None
-    months = parse_cron_field(month_field, 1, 12) if month_field != '*' else None
-    dows = parse_cron_field(dow_field, 0, 6) if dow_field != '*' else None
-    
-    now = datetime.datetime.now()
-    
-    # Start searching from the next minute
-    search_time = now.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
-    
-    # Search for up to 366 days
-    for _ in range(366 * 24 * 60):
-        # Check month
-        if months and search_time.month not in months:
-            search_time = search_time.replace(day=1, hour=0, minute=0)
-            search_time += datetime.timedelta(days=32)
-            search_time = search_time.replace(day=1)
-            continue
-        
-        # Check day of month
-        if days and search_time.day not in days:
-            search_time = search_time.replace(hour=0, minute=0)
-            search_time += datetime.timedelta(days=1)
-            continue
-        
-        # Check day of week (convert Python weekday to cron weekday)
-        if dows:
-            cron_dow = (search_time.weekday() + 1) % 7
-            if cron_dow not in dows:
-                search_time = search_time.replace(hour=0, minute=0)
-                search_time += datetime.timedelta(days=1)
-                continue
-        
-        # Check hour
-        if search_time.hour not in hours:
-            search_time = search_time.replace(minute=0)
-            search_time += datetime.timedelta(hours=1)
-            continue
-        
-        # Check minute
-        if search_time.minute not in minutes:
-            search_time += datetime.timedelta(minutes=1)
-            continue
-        
-        # Found a valid time
-        print(search_time.strftime('%Y-%m-%d %H:%M:%S'))
-        exit(0)
-    
-    print('Unable to calculate next cron time within 366 days')
-
-except (ValueError, IndexError) as e:
-    print('Unable to reliably parse and calculate next cron expression')
-"
-}
 
 # Create a helper script for output directory detection
 cat > /app/detect-output-dir.sh << 'DETECT_EOF'
@@ -177,18 +75,18 @@ DETECT_EOF
 chmod +x /app/detect-output-dir.sh
 
 # Create a wrapper script that dynamically detects the output directory on each run
-cat > /app/run-tssk.sh << 'WRAPPER_EOF'
+cat > /app/run-tssk.sh << WRAPPER_EOF
 #!/bin/bash
 
 # Set timezone - use passed value or default to UTC
-export TZ="${TZ:-UTC}"
+export TZ="\${TZ:-UTC}"
 
 # Dynamically detect output directory each time this script runs
-export TSSK_OUTPUT_DIR="$(/app/detect-output-dir.sh)"
+export TSSK_OUTPUT_DIR="\$(/app/detect-output-dir.sh)"
 
 # Ensure the output directory exists and is writable
-mkdir -p "${TSSK_OUTPUT_DIR}"
-chmod -R 755 "${TSSK_OUTPUT_DIR}" 2>/dev/null || true
+mkdir -p "\${TSSK_OUTPUT_DIR}"
+chmod -R 755 "\${TSSK_OUTPUT_DIR}" 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -199,7 +97,7 @@ NC='\033[0m' # No Color
 
 # Function to log with timestamp
 log() {
-    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo -e "[\$(date '+%Y-%m-%d %H:%M:%S')] \$1"
 }
 
 # Function to get next cron run time
@@ -208,13 +106,11 @@ get_next_cron_time() {
 import datetime
 
 def parse_cron_field(field, min_val, max_val):
-    \"\"\"Parse a cron field and return a sorted list of valid values.\"\"\"
     values = set()
     
     for part in field.split(','):
         part = part.strip()
         
-        # Handle step values (*/n or n-m/step)
         if '/' in part:
             range_part, step = part.split('/')
             step = int(step)
@@ -229,22 +125,19 @@ def parse_cron_field(field, min_val, max_val):
             
             values.update(range(start, end + 1, step))
         
-        # Handle ranges (n-m)
         elif '-' in part:
             start, end = map(int, part.split('-'))
             values.update(range(start, end + 1))
         
-        # Handle wildcard (*)
         elif part == '*':
             values.update(range(min_val, max_val + 1))
         
-        # Handle single number
         else:
             values.add(int(part))
     
     return sorted(list(values))
 
-cron_expression = '${CRON}'
+cron_expression = '\${CRON}'
 parts = cron_expression.split()
 
 if len(parts) != 5:
@@ -254,7 +147,6 @@ if len(parts) != 5:
 minute_field, hour_field, day_field, month_field, dow_field = parts
 
 try:
-    # Parse each field
     minutes = parse_cron_field(minute_field, 0, 59)
     hours = parse_cron_field(hour_field, 0, 23)
     days = parse_cron_field(day_field, 1, 31) if day_field != '*' else None
@@ -262,26 +154,20 @@ try:
     dows = parse_cron_field(dow_field, 0, 6) if dow_field != '*' else None
     
     now = datetime.datetime.now()
-    
-    # Start searching from the next minute
     search_time = now.replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
     
-    # Search for up to 366 days
     for _ in range(366 * 24 * 60):
-        # Check month
         if months and search_time.month not in months:
             search_time = search_time.replace(day=1, hour=0, minute=0)
             search_time += datetime.timedelta(days=32)
             search_time = search_time.replace(day=1)
             continue
         
-        # Check day of month
         if days and search_time.day not in days:
             search_time = search_time.replace(hour=0, minute=0)
             search_time += datetime.timedelta(days=1)
             continue
         
-        # Check day of week (convert Python weekday to cron weekday)
         if dows:
             cron_dow = (search_time.weekday() + 1) % 7
             if cron_dow not in dows:
@@ -289,18 +175,15 @@ try:
                 search_time += datetime.timedelta(days=1)
                 continue
         
-        # Check hour
         if search_time.hour not in hours:
             search_time = search_time.replace(minute=0)
             search_time += datetime.timedelta(hours=1)
             continue
         
-        # Check minute
         if search_time.minute not in minutes:
             search_time += datetime.timedelta(minutes=1)
             continue
         
-        # Found a valid time
         print(search_time.strftime('%Y-%m-%d %H:%M:%S'))
         exit(0)
     
@@ -311,14 +194,33 @@ except (ValueError, IndexError) as e:
 "
 }
 
-log "${BLUE}Output directory detected: ${TSSK_OUTPUT_DIR}${NC}"
+log "\${BLUE}========================================\${NC}"
+log "\${BLUE}TSSK Run Starting\${NC}"
+log "\${BLUE}========================================\${NC}"
+log "\${BLUE}Output directory detected: \${TSSK_OUTPUT_DIR}\${NC}"
+log "\${BLUE}Verifying output directory is writable...\${NC}"
+if [ ! -w "\${TSSK_OUTPUT_DIR}" ]; then
+    log "\${RED}ERROR: Output directory \${TSSK_OUTPUT_DIR} is not writable!\${NC}"
+else
+    log "\${GREEN}Output directory is writable\${NC}"
+fi
+log "\${BLUE}Listing files in output directory:\${NC}"
+ls -la "\${TSSK_OUTPUT_DIR}" 2>&1 || log "\${YELLOW}Could not list directory\${NC}"
+log "\${BLUE}----------------------------------------\${NC}"
+
 cd /app
-export PATH=/usr/local/bin:$PATH
+export PATH=/usr/local/bin:\$PATH
 /usr/local/bin/python TSSK.py
 
+log "\${BLUE}----------------------------------------\${NC}"
+log "\${BLUE}TSSK Run Completed\${NC}"
+log "\${BLUE}Files after run:\${NC}"
+ls -la "\${TSSK_OUTPUT_DIR}" 2>&1 || log "\${YELLOW}Could not list directory\${NC}"
+
 # Calculate and display next run time
-NEXT_RUN=$(get_next_cron_time)
-log "${BLUE}Next execution scheduled for: ${NEXT_RUN}${NC}"
+NEXT_RUN=\$(get_next_cron_time)
+log "\${BLUE}Next execution scheduled for: \${NEXT_RUN}\${NC}"
+log "\${BLUE}========================================\${NC}"
 WRAPPER_EOF
 
 chmod +x /app/run-tssk.sh
@@ -328,13 +230,14 @@ log "${BLUE}TSSK is starting with the following cron schedule: ${CRON}${NC}"
 # Get TZ for cron
 CRON_TZ="${TZ:-UTC}"
 
-# Setup cron job - removed TSSK_OUTPUT_DIR from cron environment since it's now detected dynamically
+# Setup cron job - add CRON variable to cron environment
 cat > /etc/cron.d/tssk-cron << 'CRONEOF'
 PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 SHELL=/bin/bash
 CRONEOF
 
 echo "TZ=${CRON_TZ}" >> /etc/cron.d/tssk-cron
+echo "CRON=${CRON}" >> /etc/cron.d/tssk-cron
 echo "" >> /etc/cron.d/tssk-cron
 echo "${CRON} root /bin/bash -c \"/app/run-tssk.sh >> /var/log/cron.log 2>&1\"" >> /etc/cron.d/tssk-cron
 
