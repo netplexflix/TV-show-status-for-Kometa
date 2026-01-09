@@ -222,9 +222,9 @@ crontab /etc/cron.d/tssk-cron
 
 touch /var/log/cron.log
 
-# Run once on startup using the wrapper script
+# Run once on startup
 log "${GREEN}Running TSSK on startup...${NC}"
-/app/run-tssk.sh 2>&1 | tee -a /var/log/cron.log
+/app/run-tssk.sh >> /var/log/cron.log 2>&1
 
 log "${GREEN}Startup run completed. Starting cron daemon...${NC}"
 cron

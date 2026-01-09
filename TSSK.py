@@ -132,7 +132,6 @@ def ensure_output_directory():
         with open(test_file, "w") as f:
             f.write("test")
         os.remove(test_file)
-        print(f"{GREEN}Output directory verified: {output_dir}{RESET}")
         return output_dir
     except Exception as e:
         print(f"{RED}Error: Cannot write to output directory {output_dir}: {str(e)}{RESET}")
