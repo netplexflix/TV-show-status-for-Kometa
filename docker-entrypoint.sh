@@ -22,18 +22,11 @@ detect_output_dir() {
     local APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
     local CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
 
-    log "${BLUE}Debug: ROOT_DEVICE=${ROOT_DEVICE}${NC}"
-    log "${BLUE}Debug: APP_KOMETA_DEVICE=${APP_KOMETA_DEVICE}${NC}"
-    log "${BLUE}Debug: CONFIG_KOMETA_DEVICE=${CONFIG_KOMETA_DEVICE}${NC}"
-
     if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
-        log "${GREEN}Debug: Detected /app/kometa as mounted volume${NC}"
         echo "/app/kometa"
     elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
-        log "${GREEN}Debug: Detected /config/kometa as mounted volume${NC}"
         echo "/config/kometa/tssk"
     else
-        log "${YELLOW}Debug: No mounted volume detected, using default /app/kometa${NC}"
         echo "/app/kometa"
     fi
 }
@@ -46,7 +39,6 @@ log "${BLUE}Using output directory: ${OUTPUT_DIR}${NC}"
 log "${BLUE}Creating output directory...${NC}"
 mkdir -p "${OUTPUT_DIR}"
 chmod -R 755 "${OUTPUT_DIR}" 2>/dev/null || true
-ls -la "${OUTPUT_DIR}/" || log "${YELLOW}Warning: ${OUTPUT_DIR}/ does not exist${NC}"
 
 # Export for Python script to use
 export TSSK_OUTPUT_DIR="${OUTPUT_DIR}"
@@ -197,37 +189,13 @@ except (ValueError, IndexError) as e:
 "
 }
 
-log "\${BLUE}========================================\${NC}"
-log "\${BLUE}TSSK Run Starting\${NC}"
-log "\${BLUE}========================================\${NC}"
-log "\${BLUE}Environment Check:\${NC}"
-log "\${BLUE}  DOCKER=\${DOCKER}\${NC}"
-log "\${BLUE}  TSSK_OUTPUT_DIR=\${TSSK_OUTPUT_DIR}\${NC}"
-log "\${BLUE}  TZ=\${TZ}\${NC}"
-log "\${BLUE}Output directory detected: \${TSSK_OUTPUT_DIR}\${NC}"
-log "\${BLUE}Verifying output directory is writable...\${NC}"
-if [ ! -w "\${TSSK_OUTPUT_DIR}" ]; then
-    log "\${RED}ERROR: Output directory \${TSSK_OUTPUT_DIR} is not writable!\${NC}"
-else
-    log "\${GREEN}Output directory is writable\${NC}"
-fi
-log "\${BLUE}Listing files in output directory:\${NC}"
-ls -la "\${TSSK_OUTPUT_DIR}" 2>&1 || log "\${YELLOW}Could not list directory\${NC}"
-log "\${BLUE}----------------------------------------\${NC}"
-
 cd /app
 export PATH=/usr/local/bin:\$PATH
 /usr/local/bin/python TSSK.py
 
-log "\${BLUE}----------------------------------------\${NC}"
-log "\${BLUE}TSSK Run Completed\${NC}"
-log "\${BLUE}Files after run:\${NC}"
-ls -la "\${TSSK_OUTPUT_DIR}" 2>&1 || log "\${YELLOW}Could not list directory\${NC}"
-
 # Calculate and display next run time
 NEXT_RUN=\$(get_next_cron_time)
 log "\${BLUE}Next execution scheduled for: \${NEXT_RUN}\${NC}"
-log "\${BLUE}========================================\${NC}"
 WRAPPER_EOF
 
 chmod +x /app/run-tssk.sh
@@ -237,7 +205,7 @@ log "${BLUE}TSSK is starting with the following cron schedule: ${CRON}${NC}"
 # Get TZ for cron
 CRON_TZ="${TZ:-UTC}"
 
-# Setup cron job - add CRON variable to cron environment
+# Setup cron job
 cat > /etc/cron.d/tssk-cron << 'CRONEOF'
 PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 SHELL=/bin/bash
@@ -256,8 +224,6 @@ touch /var/log/cron.log
 
 # Run once on startup using the wrapper script
 log "${GREEN}Running TSSK on startup...${NC}"
-log "${BLUE}Current directory: $(pwd)${NC}"
-log "${BLUE}Output directory: ${OUTPUT_DIR}${NC}"
 /app/run-tssk.sh 2>&1 | tee -a /var/log/cron.log
 
 log "${GREEN}Startup run completed. Starting cron daemon...${NC}"
