@@ -1,70 +1,65 @@
 <p align="center">
    <img width="567" height="204" alt="Image" src="https://github.com/user-attachments/assets/35eae37f-606c-4fbb-b063-fe80584e8af9" /><br>
-   <a href="https://github.com/netplexflix/TV-show-status-for-Kometa/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/netplexflix/TV-show-status-for-Kometa?style=plastic"></a> <a href="https://hub.docker.com/repository/docker/netplexflix/tssk"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/netplexflix/tssk?style=plastic"></a> <a href="https://discord.gg/VBNUJd7tx3"><img alt="Discord" src="https://img.shields.io/discord/1329439972796928041?style=plastic&label=Discord"></a>
-
-
+   <a href="https://github.com/netplexflix/TV-show-status-for-Kometa/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/netplexflix/TV-show-status-for-Kometa?style=plastic"></a>
+   <a href="https://hub.docker.com/repository/docker/netplexflix/tssk"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/netplexflix/tssk?style=plastic"></a>
+   <a href="https://discord.gg/VBNUJd7tx3"><img alt="Discord" src="https://img.shields.io/discord/1329439972796928041?style=plastic&label=Discord"></a>
 </p>
 
-TSSK (TV Show Status for Kometa) checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses and creates .yml files<br>
-which can be used by [Kometa](https://kometa.wiki/) to create collections and overlays.</br>
+TSSK (TV Show Status for Kometa) checks your [Sonarr](https://sonarr.tv/) for your TV Shows statuses and creates `.yml` files  
+which can be used by [Kometa](https://kometa.wiki/) to create collections and overlays.
 
+---
 
-Categories:
-*  New shows, that were added in the past x days
-*  Shows with upcoming regular episodes within x days
-*  Shows for which a new season is airing within x days
-*  Shows for which a new season has been added which aired in the past x days
-*  Shows with upcoming season finales within x days
-*  Shows for which a season finale was added which aired in the past x days
-*  Shows for which a final episode was added which aired in the past x days
-*  Returning Shows
-*  Ended Shows
-*  Canceled Shows
+## Categories
+- New shows, that were added in the past x days
+- Shows with upcoming regular episodes within x days
+- Shows for which a new season is airing within x days
+- Shows for which a new season has been added which aired in the past x days
+- Shows with upcoming season finales within x days
+- Shows for which a season finale was added which aired in the past x days
+- Shows for which a final episode was added which aired in the past x days
+- Returning Shows
+- Ended Shows
+- Canceled Shows
 
 <sub>Also see [UMTK](https://github.com/netplexflix/Upcoming-Movies-TV-Shows-for-Kometa) for adding a category for upcoming Movies and TV shows</sub>
-
-Example overlays (you can fully customize placement, colors, text, etc:
-![Image](https://github.com/user-attachments/assets/e7c517cc-5164-41d9-8e5e-015577aad36e)
-
-Example collection:</br>
-<img width="696" height="403" alt="Image" src="https://github.com/user-attachments/assets/b52c411f-4d73-4386-93c4-38cee8ea2998" />
 
 ---
 
 ## 📝 Table of Contents
-* [✨ Features](#-features)
-* [🛠️ Installation](#installation)
-    * [▶️ Option 1: Manual (Python)](#-option-1-manual-python)
-    * [▶️ Option 2: Docker](#-option-2-docker)
-    * [🧩 Continue Setup](#-continue-setup)
-        * [1️⃣ Edit your Kometa config](#1-edit-your-kometa-config)
-        * [2️⃣ Edit your configuration file](#2-edit-your-configuration-file)
-* [⚙️ Configuration](#-configuration)
-* [🚀 Usage - Running the Script](#-usage---running-the-script)
-* [⚠️ Do you Need Help or have Feedback?](#️-do-you-need-help-or-have-feedback)
-  
+- [✨ Features](#features)
+- [🛠️ Installation](#installation)
+  - [▶️ Option 1: Manual (Python)](#option-1-manual-python)
+  - [▶️ Option 2: Docker](#option-2-docker)
+  - [🧩 Continue Setup](#continue-setup)
+    - [Edit your Kometa config](#edit-kometa-config)
+    - [Edit your configuration file](#edit-configuration-file)
+- [⚙️ Configuration](#configuration)
+- [🚀 Usage - Running the Script](#usage)
+- [⚠️ Do you Need Help or have Feedback?](#help)
+
 ---
 
+<a id="features"></a>
 ## ✨ Features
-- 🗓️ **Detects upcoming episodes, finales and seasons**: Searches Sonarr for TV show schedules.
-- 🏁 **Aired Finale labelling**: Use a separate overlay for shows for which a Finale was added.
--  ▼ **Filters out unmonitored**: Skips show if season/episode is unmonitored. (optional)
--  🪄 **Customizable**: Change date format, collection name, overlay positioning, text, ..
--  🌎 **Timezones**: Choose your timezone, regardless of where the script is ran from.
-- ℹ️ **Informs**: Lists matched and skipped(unmonitored) TV shows.
-- 📝 **Creates .yml**: Creates collection and overlay files which can be used with Kometa.
+- 🗓️ Detects upcoming episodes, finales and seasons
+- 🏁 Aired Finale labelling
+- ▼ Filters out unmonitored content
+- 🪄 Fully customizable
+- 🌎 Timezone aware
+- ℹ️ Informative output
+- 📝 Generates Kometa-compatible `.yml` files
 
 ---
 
+<a id="installation"></a>
 ## 🛠️ Installation
 
-### Choose your install method:
-
 ---
 
+<a id="option-1-manual-python"></a>
 ### ▶️ Option 1: Manual (Python)
 
-1. Clone the repo:
 ```sh
 git clone https://github.com/netplexflix/TV-show-status-for-Kometa.git
 cd TV-show-status-for-Kometa
@@ -87,6 +82,7 @@ pip install -r requirements.txt
 
 ---
 
+<a id="option-2-docker"></a>
 ### ▶️ Option 2: Docker
 
 If you prefer not to install Python and dependencies manually, you can use the official Docker image instead.
@@ -128,8 +124,10 @@ services:
 
 ---
 
+<a id="continue-setup"></a>
 ### 🧩 Continue Setup
 
+<a id="edit-kometa-config"></a>
 ### 1️⃣ Edit your Kometa config
 
 Open your **Kometa** config.yml (typically at `Kometa/config/config.yml`, NOT your TSSK config file).  
@@ -208,9 +206,11 @@ TV Shows:
 > Only add the files for the categories you want to enable. All are optional and independently generated based on your config settings.
 > If you add `TSSK_TV_NEW_SEASON_METADATA` the air date of the New Season premiere will be added to the beginning of the sort title so you can sort them by air date. 
 
+<a id="edit-configuration-file"></a>
 ### 2️⃣ Edit your configuration file
 ---
 
+<a id="configuration"></a>
 ## ⚙️ Configuration
 Rename `config.example.yml` to `config.yml` and edit the needed settings:
 
@@ -281,6 +281,8 @@ For each category, you can change the relevant settings:
 >Dividers can be `/`, `-` or a space
 
 ---
+
+<a id="usage"></a>
 ## 🚀 Usage - Running the Script
 
 If you're using the **Docker setup**, the script will run automatically according to the schedule defined by the `CRON` variable in your `docker-compose.yml`.  
@@ -312,7 +314,7 @@ The previous configuration will be erased so Kometa will automatically remove ov
 > You can also use this batch file to [schedule](https://www.windowscentral.com/how-create-automated-task-using-task-scheduler-windows-10) the script to run.
 ---
 
-
+<a id="help"></a>
 ### ⚠️ **Do you Need Help or have Feedback?**
 - Join the [Discord](https://discord.gg/VBNUJd7tx3).
  
