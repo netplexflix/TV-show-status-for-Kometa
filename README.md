@@ -33,7 +33,7 @@ Example collection:</br>
 
 ## 📝 Table of Contents
 * [✨ Features](#-features)
-* [🛠️ Installation](#-installation)
+* [🛠️ Installation](#installation)
     * [▶️ Option 1: Manual (Python)](#-option-1-manual-python)
     * [▶️ Option 2: Docker](#-option-2-docker)
     * [🧩 Continue Setup](#-continue-setup)
