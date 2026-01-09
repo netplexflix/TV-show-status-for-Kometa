@@ -16,20 +16,24 @@ get_device_id() {
     stat -c %d "$1" 2>/dev/null || echo "0"
 }
 
-ROOT_DEVICE=$(get_device_id /)
-APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
-CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
+# Function to detect output directory (will be called both at startup and in cron runs)
+detect_output_dir() {
+    local ROOT_DEVICE=$(get_device_id /)
+    local APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
+    local CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
 
-if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
-    OUTPUT_DIR="/app/kometa"
-    log "${BLUE}Using output directory: /app/kometa (unRAID mount detected)${NC}"
-elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
-    OUTPUT_DIR="/config/kometa/tssk"
-    log "${BLUE}Using output directory: /config/kometa/tssk (docker-compose mount detected)${NC}"
-else
-    OUTPUT_DIR="/app/kometa"
-    log "${YELLOW}No mount detected, using default: /app/kometa${NC}"
-fi
+    if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+        echo "/app/kometa"
+    elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+        echo "/config/kometa/tssk"
+    else
+        echo "/app/kometa"
+    fi
+}
+
+# Detect output directory
+OUTPUT_DIR=$(detect_output_dir)
+log "${BLUE}Using output directory: ${OUTPUT_DIR}${NC}"
 
 # Ensure the output directory exists and is writable
 log "${BLUE}Creating output directory...${NC}"
@@ -149,19 +153,42 @@ except (ValueError, IndexError) as e:
 "
 }
 
-# Create a wrapper script that includes the next schedule calculation
-cat > /app/run-tssk.sh << WRAPPER_EOF
+# Create a helper script for output directory detection
+cat > /app/detect-output-dir.sh << 'DETECT_EOF'
+#!/bin/bash
+
+get_device_id() {
+    stat -c %d "$1" 2>/dev/null || echo "0"
+}
+
+ROOT_DEVICE=$(get_device_id /)
+APP_KOMETA_DEVICE=$(get_device_id /app/kometa 2>/dev/null)
+CONFIG_KOMETA_DEVICE=$(get_device_id /config/kometa 2>/dev/null)
+
+if [ -d "/app/kometa" ] && [ "$APP_KOMETA_DEVICE" != "0" ] && [ "$APP_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+    echo "/app/kometa"
+elif [ -d "/config/kometa" ] && [ "$CONFIG_KOMETA_DEVICE" != "0" ] && [ "$CONFIG_KOMETA_DEVICE" != "$ROOT_DEVICE" ]; then
+    echo "/config/kometa/tssk"
+else
+    echo "/app/kometa"
+fi
+DETECT_EOF
+
+chmod +x /app/detect-output-dir.sh
+
+# Create a wrapper script that dynamically detects the output directory on each run
+cat > /app/run-tssk.sh << 'WRAPPER_EOF'
 #!/bin/bash
 
 # Set timezone - use passed value or default to UTC
 export TZ="${TZ:-UTC}"
 
-# Pass through the output directory
-export TSSK_OUTPUT_DIR="${OUTPUT_DIR}"
+# Dynamically detect output directory each time this script runs
+export TSSK_OUTPUT_DIR="$(/app/detect-output-dir.sh)"
 
 # Ensure the output directory exists and is writable
-mkdir -p "${OUTPUT_DIR}"
-chmod -R 755 "${OUTPUT_DIR}" 2>/dev/null || true
+mkdir -p "${TSSK_OUTPUT_DIR}"
+chmod -R 755 "${TSSK_OUTPUT_DIR}" 2>/dev/null || true
 
 # Colors for output
 RED='\033[0;31m'
@@ -172,7 +199,7 @@ NC='\033[0m' # No Color
 
 # Function to log with timestamp
 log() {
-    echo -e "[\$(date '+%Y-%m-%d %H:%M:%S')] \$1"
+    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
 # Function to get next cron run time
@@ -284,13 +311,14 @@ except (ValueError, IndexError) as e:
 "
 }
 
+log "${BLUE}Output directory detected: ${TSSK_OUTPUT_DIR}${NC}"
 cd /app
-export PATH=/usr/local/bin:\$PATH
+export PATH=/usr/local/bin:$PATH
 /usr/local/bin/python TSSK.py
 
 # Calculate and display next run time
-NEXT_RUN=\$(get_next_cron_time)
-log "\${BLUE}Next execution scheduled for: \${NEXT_RUN}\${NC}"
+NEXT_RUN=$(get_next_cron_time)
+log "${BLUE}Next execution scheduled for: ${NEXT_RUN}${NC}"
 WRAPPER_EOF
 
 chmod +x /app/run-tssk.sh
@@ -300,14 +328,13 @@ log "${BLUE}TSSK is starting with the following cron schedule: ${CRON}${NC}"
 # Get TZ for cron
 CRON_TZ="${TZ:-UTC}"
 
-# Setup cron job with proper PATH
+# Setup cron job - removed TSSK_OUTPUT_DIR from cron environment since it's now detected dynamically
 cat > /etc/cron.d/tssk-cron << 'CRONEOF'
 PATH=/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
 SHELL=/bin/bash
 CRONEOF
 
 echo "TZ=${CRON_TZ}" >> /etc/cron.d/tssk-cron
-echo "TSSK_OUTPUT_DIR=${OUTPUT_DIR}" >> /etc/cron.d/tssk-cron
 echo "" >> /etc/cron.d/tssk-cron
 echo "${CRON} root /bin/bash -c \"/app/run-tssk.sh >> /var/log/cron.log 2>&1\"" >> /etc/cron.d/tssk-cron
 
