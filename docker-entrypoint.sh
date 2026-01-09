@@ -81,6 +81,9 @@ cat > /app/run-tssk.sh << WRAPPER_EOF
 # Set timezone - use passed value or default to UTC
 export TZ="\${TZ:-UTC}"
 
+# CRITICAL: Ensure DOCKER mode is set
+export DOCKER=true
+
 # Dynamically detect output directory each time this script runs
 export TSSK_OUTPUT_DIR="\$(/app/detect-output-dir.sh)"
 
@@ -197,6 +200,10 @@ except (ValueError, IndexError) as e:
 log "\${BLUE}========================================\${NC}"
 log "\${BLUE}TSSK Run Starting\${NC}"
 log "\${BLUE}========================================\${NC}"
+log "\${BLUE}Environment Check:\${NC}"
+log "\${BLUE}  DOCKER=\${DOCKER}\${NC}"
+log "\${BLUE}  TSSK_OUTPUT_DIR=\${TSSK_OUTPUT_DIR}\${NC}"
+log "\${BLUE}  TZ=\${TZ}\${NC}"
 log "\${BLUE}Output directory detected: \${TSSK_OUTPUT_DIR}\${NC}"
 log "\${BLUE}Verifying output directory is writable...\${NC}"
 if [ ! -w "\${TSSK_OUTPUT_DIR}" ]; then
@@ -238,6 +245,7 @@ CRONEOF
 
 echo "TZ=${CRON_TZ}" >> /etc/cron.d/tssk-cron
 echo "CRON=${CRON}" >> /etc/cron.d/tssk-cron
+echo "DOCKER=true" >> /etc/cron.d/tssk-cron
 echo "" >> /etc/cron.d/tssk-cron
 echo "${CRON} root /bin/bash -c \"/app/run-tssk.sh >> /var/log/cron.log 2>&1\"" >> /etc/cron.d/tssk-cron
 
