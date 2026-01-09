@@ -34,9 +34,7 @@ def get_output_directory():
     # Check for environment variable first (set by entrypoint script)
     env_output_dir = os.getenv("TSSK_OUTPUT_DIR")
     if env_output_dir:
-        output_dir = env_output_dir.rstrip('/') + '/'
-        print(f"{GREEN}Using TSSK_OUTPUT_DIR from environment: {output_dir}{RESET}")
-        return output_dir
+        return env_output_dir.rstrip('/') + '/'
     
     # Check /config/kometa first (backwards compatible with existing docker-compose setups)
     config_kometa = "/config/kometa"
@@ -48,15 +46,11 @@ def get_output_directory():
                 f.write("test")
             os.remove(test_file)
             # Use the tssk subfolder for backwards compatibility
-            output_dir = config_kometa + "/tssk/"
-            print(f"{GREEN}Using /config/kometa/tssk (backwards compatible){RESET}")
-            return output_dir
+            return config_kometa + "/tssk/"
         except (IOError, OSError):
-            print(f"{ORANGE}Warning: /config/kometa exists but is not writable{RESET}")
             pass
     
     # Fall back to /app/kometa (works with unRAID template mapping to /app/kometa)
-    print(f"{GREEN}Using /app/kometa (default){RESET}")
     return "/app/kometa/"
 
 def check_for_updates():
