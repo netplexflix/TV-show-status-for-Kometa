@@ -35,6 +35,7 @@ which can be used by [Kometa](https://kometa.wiki/) to create collections and ov
     - [Edit your Kometa config](#edit-kometa-config)
     - [Edit your configuration file](#edit-configuration-file)
 - [⚙️ Configuration](#configuration)
+- [🌐 Localization](#localization)
 - [🚀 Usage - Running the Script](#usage)
 - [⚠️ Do you Need Help or have Feedback?](#help)
 
@@ -279,6 +280,13 @@ For each category, you can change the relevant settings:
 > `yyyy`: Full year (2025)
 >
 >Dividers can be `/`, `-` or a space
+
+---
+
+<a id="localization"></a>
+## 🌐 Localization
+
+You can translate weekdays and months by downloading `localization.yml` to your config folder (next to `config.yml`) and translating all values to your prefered language.
 
 ---
 
