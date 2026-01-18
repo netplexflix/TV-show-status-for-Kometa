@@ -7,7 +7,8 @@ services:
     environment:
       - CRON=0 2 * * * # every day at 2am
       - DOCKER=true # important for path reference
+      - TZ=Europe/Amsterdam # Set your timezone
     volumes:
-      - /your/local/config/tssk:/app/config
-      - /your/local/kometa/config:/config/kometa
+      - ./config:/app/config
+      - ./kometa:/config/kometa
     restart: unless-stopped
