@@ -87,13 +87,8 @@ def create_collection_yaml(output_file, shows, config):
             data = {
                 "collections": {
                     collection_name: {
-                        "plex_search": {
-                            "all": {
-                                "label": collection_name
-                            }
-                        },
+                        "plex_all": True,
                         "item_label.remove": collection_name,
-                        "smart_label": "random",
                         "build_collection": False
                     }
                 }
@@ -110,12 +105,8 @@ def create_collection_yaml(output_file, shows, config):
             data = {
                 "collections": {
                     collection_name: {
-                        "plex_search": {
-                            "all": {
-                                "label": collection_name
-                            }
-                        },
-                        "non_item_remove_label": collection_name,
+                        "plex_all": True,
+                        "item_label.remove": collection_name,
                         "build_collection": False
                     }
                 }
