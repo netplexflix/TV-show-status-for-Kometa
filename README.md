@@ -22,6 +22,12 @@ which can be used by [Kometa](https://kometa.wiki/) to create collections and ov
 - Ended Shows
 - Canceled Shows
 
+Example overlays (you can fully customize placement, colors, text, etc:
+![Image](https://github.com/user-attachments/assets/e7c517cc-5164-41d9-8e5e-015577aad36e)
+
+Example collection:</br>
+<img width="696" height="403" alt="Image" src="https://github.com/user-attachments/assets/b52c411f-4d73-4386-93c4-38cee8ea2998" />
+
 <sub>Also see [UMTK](https://github.com/netplexflix/Upcoming-Movies-TV-Shows-for-Kometa) for adding a category for upcoming Movies and TV shows</sub>
 
 ---
