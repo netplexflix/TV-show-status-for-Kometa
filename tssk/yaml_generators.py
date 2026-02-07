@@ -83,12 +83,15 @@ def create_collection_yaml(output_file, shows, config):
 
         # Handle the case when no shows are found
         if not shows:
+            # Determine label to remove: use item_label if available, otherwise collection_name
+            label_to_remove = collection_config.get("item_label", collection_name)
+            
             # Create the template for empty collections
             data = {
                 "collections": {
                     collection_name: {
                         "plex_all": True,
-                        "item_label.remove": collection_name,
+                        "item_label.remove": label_to_remove,
                         "build_collection": False
                     }
                 }
@@ -101,12 +104,15 @@ def create_collection_yaml(output_file, shows, config):
         
         tvdb_ids = [s['tvdbId'] for s in shows if s.get('tvdbId')]
         if not tvdb_ids:
+            # Determine label to remove: use item_label if available, otherwise collection_name
+            label_to_remove = collection_config.get("item_label", collection_name)
+            
             # Create the template for empty collections
             data = {
                 "collections": {
                     collection_name: {
                         "plex_all": True,
-                        "item_label.remove": collection_name,
+                        "item_label.remove": label_to_remove,
                         "build_collection": False
                     }
                 }
