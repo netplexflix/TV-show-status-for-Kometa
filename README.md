@@ -206,6 +206,10 @@ Rename `config.example.yml` in your config folder to `config.yml` and edit the n
 - **sonarr_api_key:** Can be found in Sonarr under settings => General => Security.
 - **sonarr_timeout:** Increase if needed for large libraries.
 - **use_tvdb:** Change to `true` if you prefer TheTVDB statuses for returning and ended. (note: TheTVDB does not have the 'canceled' status)
+- **edit_sort_titles:** Set to `true` to have TSSK edit sort titles directly in Plex (requires `plex_url`, `plex_token`, and `tv_libraries`). The air date of the new season premiere will be added to the sort title so you can sort shows by air date.
+- **plex_url:** Your Plex server URL (e.g., `http://localhost:32400`).
+- **plex_token:** Your Plex authentication token. [How to find your Plex token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
+- **tv_libraries:** Comma-separated list of Plex TV library names to update (e.g., `TV Shows` or `TV Shows, Anime`).
 - **skip_unmonitored:** Default `true` will skip a show if the upcoming season/episode is unmonitored.
 - **ignore_finales_tags:** Shows with these tags will be ignored when checking for finales.
 >[!NOTE]
@@ -286,8 +290,6 @@ Manual install Example:
 
 ```yaml
 TV Shows:
-  metadata_files:
-  - file: P:/Scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_METADATA.yml
   overlay_files:
   - file: P:/scripts/TSSK/kometa/TSSK_TV_NEW_SEASON_OVERLAYS.yml
   - file: P:/scripts/TSSK/kometa/TSSK_TV_UPCOMING_EPISODE_OVERLAYS.yml
@@ -314,7 +316,6 @@ TV Shows:
 
 > [!TIP]
 > Only add the files for the categories you want to enable. All are optional and independently generated based on your config settings.
-> If you add `TSSK_TV_NEW_SEASON_METADATA` the air date of the New Season premiere will be added to the beginning of the sort title so you can sort them by air date. 
 
 ---
 
