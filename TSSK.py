@@ -32,9 +32,9 @@ from tssk.yaml_generators import (
     create_ended_show_collection_yaml,
     create_ended_show_overlay_yaml,
     create_canceled_show_collection_yaml,
-    create_canceled_show_overlay_yaml,
-    create_metadata_yaml
+    create_canceled_show_overlay_yaml
 )
+from tssk.plex_integration import update_plex_sort_titles
 
 
 def main():
@@ -117,6 +117,20 @@ def main():
         print(f"ignore_finales_tags: {ignore_finales_tags}\n")
         print(f"UTC offset: {utc_offset} hours\n")
 
+        # Plex configuration
+        plex_url = config.get('plex_url', '')
+        plex_token = config.get('plex_token', '')
+        tv_libraries = config.get('tv_libraries', '')
+        edit_sort_titles = str(config.get('edit_sort_titles', 'false')).lower() == 'true'
+
+        if edit_sort_titles:
+            if not plex_url or not plex_token or not tv_libraries:
+                print(f"{ORANGE}edit_sort_titles is enabled but plex_url, plex_token, or tv_libraries is not configured{RESET}")
+                edit_sort_titles = False
+            else:
+                print(f"Edit sort titles: {edit_sort_titles}")
+                print(f"  TV libraries: {tv_libraries}")
+
         # Get series and tags from Sonarr in one call
         all_series, tag_mapping = get_sonarr_series_and_tags(sonarr_url, sonarr_api_key, sonarr_timeout)
 
@@ -135,26 +149,29 @@ def main():
 
         # ---- New Season Soon ----
         skipped_shows = []
+        matched_shows = []
         if process_new_season_soon:
             matched_shows, skipped_shows = find_new_season_shows(
                 sonarr_url, sonarr_api_key, all_series, tag_mapping, future_days_new_season, utc_offset, skip_unmonitored
             )
-                                
+
             if matched_shows:
                 print(f"\n{GREEN}Shows with a new season starting within {future_days_new_season} days:{RESET}")
                 for show in matched_shows:
                     print(f"- {show['title']} (Season {show['seasonNumber']}) airs on {show['airDate']}")
             else:
                 print(f"\n{RED}No shows with new seasons starting within {future_days_new_season} days.{RESET}")
-            
+
             # Create YAMLs for new seasons
-            create_overlay_yaml("TSSK_TV_NEW_SEASON_OVERLAYS.yml", matched_shows, 
+            create_overlay_yaml("TSSK_TV_NEW_SEASON_OVERLAYS.yml", matched_shows,
                                {"backdrop": config.get("backdrop_new_season", config.get("backdrop", {})),
                                 "text": config.get("text_new_season", config.get("text", {}))}, config, "backdrop_new_season", localization)
-            
+
             create_collection_yaml("TSSK_TV_NEW_SEASON_COLLECTION.yml", matched_shows, config)
-            
-            create_metadata_yaml("TSSK_TV_NEW_SEASON_METADATA.yml", matched_shows, config, sonarr_url, sonarr_api_key, all_series, sonarr_timeout)
+
+        # Update Plex sort titles (runs even if category is disabled to reset stale sort titles)
+        if edit_sort_titles:
+            update_plex_sort_titles(plex_url, plex_token, tv_libraries, matched_shows, all_series, config)
 
         # ---- New Season Started ----
         if process_new_season_started:
