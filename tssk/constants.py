@@ -3,7 +3,7 @@
 import os
 
 # Version
-VERSION = "2026.03.13"
+VERSION = "2026.03.16"
 
 # Environment detection
 IS_DOCKER = os.getenv("DOCKER", "false").lower() == "true"
