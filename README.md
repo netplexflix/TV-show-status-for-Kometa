@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> As per 2026.04.22, TSSK has been integrated into [UMTK](https://github.com/netplexflix/Upcoming-Movies-TV-Shows-for-Kometa). This repo is now archived and no longer in development.
+> TSSK continues to function as part of UMTK.
+
 <p align="center">
    <img width="567" height="204" alt="Image" src="https://github.com/user-attachments/assets/35eae37f-606c-4fbb-b063-fe80584e8af9" /><br>
    <a href="https://github.com/netplexflix/TV-show-status-for-Kometa/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/netplexflix/TV-show-status-for-Kometa?style=plastic"></a>
